@@ -1,0 +1,26 @@
+services:
+  auth-service-yugabyte:
+    image: yugabytedb/yugabyte:2025.2.2.2-b11
+    container_name: ofm-auth-service-yugabyte
+    restart: unless-stopped
+    command: ["bin/yugabyted", "start", "--daemon=false"]
+    ports:
+      - "5434:5433"
+      - "7001:7000"
+      - "9001:9000"
+      - "15434:15433"
+    volumes:
+      - auth_service_yugabyte_data:/home/yugabyte/var
+
+  auth-service-yugabyte-init:
+    image: yugabytedb/yugabyte:2025.2.2.2-b11
+    container_name: ofm-auth-service-yugabyte-init
+    depends_on:
+      - auth-service-yugabyte
+    restart: "no"
+    entrypoint: ["/bin/bash", "/scripts/init-auth-yugabyte.sh"]
+    volumes:
+      - ./scripts/init-auth-yugabyte.sh:/scripts/init-auth-yugabyte.sh:ro
+
+volumes:
+  auth_service_yugabyte_data:

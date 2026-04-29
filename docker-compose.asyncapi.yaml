@@ -1,0 +1,56 @@
+services:
+  asyncapi-validate:
+    image: asyncapi/cli:latest
+    container_name: ofm-asyncapi-validate
+    working_dir: /workspace
+    user: root
+    environment:
+      SUPPRESS_NO_CONFIG_WARNING: "true"
+    volumes:
+      - ../:/workspace
+    command:
+      - validate
+      - /workspace/ofm-docs/asyncapi/nats-asyncapi.yaml
+
+  asyncapi-generate:
+    image: asyncapi/cli:latest
+    container_name: ofm-asyncapi-generate
+    working_dir: /workspace
+    user: root
+    environment:
+      PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
+      SUPPRESS_NO_CONFIG_WARNING: "true"
+    volumes:
+      - ../:/workspace
+    command:
+      - generate
+      - fromTemplate
+      - --install
+      - --no-interactive
+      - --debug
+      - -o
+      - /workspace/ofm-docs/asyncapi/site
+      - /workspace/ofm-docs/asyncapi/nats-asyncapi.yaml
+      - "@asyncapi/html-template@3.3.1"
+      - --force-write
+
+  asyncapi-preview:
+    image: asyncapi/cli:latest
+    container_name: ofm-asyncapi-preview
+    restart: unless-stopped
+    working_dir: /workspace
+    user: root
+    environment:
+      SUPPRESS_NO_CONFIG_WARNING: "true"
+    ports:
+      - "8081:8080"
+    volumes:
+      - ../:/workspace
+    command:
+      - start
+      - studio
+      - /workspace/ofm-docs/asyncapi/nats-asyncapi.yaml
+      - -p
+      - "8080"
+      - -B
+      - --no-interactive

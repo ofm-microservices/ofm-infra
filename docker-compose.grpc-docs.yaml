@@ -1,0 +1,16 @@
+services:
+  grpc-docs-generate:
+    image: gendocu/grpc-docs
+    container_name: ofm-grpc-docs-generate
+    volumes:
+      - ../ofm-common/proto:/input:ro
+      - ../ofm-docs/grpc:/output
+
+  grpc-docs-preview:
+    image: nginx:alpine
+    container_name: ofm-grpc-docs-preview
+    restart: unless-stopped
+    ports:
+      - "8083:80"
+    volumes:
+      - ../ofm-docs/grpc:/usr/share/nginx/html:ro

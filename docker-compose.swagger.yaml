@@ -1,0 +1,11 @@
+services:
+  api-gateway-swagger-ui:
+    image: swaggerapi/swagger-ui:v5.32.4
+    container_name: ofm-api-gateway-swagger-ui
+    restart: unless-stopped
+    ports:
+      - "8082:8080"
+    environment:
+      SWAGGER_JSON: /usr/share/nginx/html/docs/swagger.json
+    volumes:
+      - ../ofm-docs/swagger/api-gateway:/usr/share/nginx/html/docs:ro

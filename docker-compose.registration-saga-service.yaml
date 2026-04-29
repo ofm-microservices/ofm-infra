@@ -1,0 +1,41 @@
+services:
+  registration-saga-service-scylla:
+    image: scylladb/scylla:2025.4
+    container_name: ofm-registration-saga-service-scylla
+    restart: unless-stopped
+    command:
+      - "--smp"
+      - "1"
+      - "--memory"
+      - "1G"
+      - "--overprovisioned"
+      - "1"
+      - "--api-address"
+      - "0.0.0.0"
+      - "--authenticator"
+      - "PasswordAuthenticator"
+      - "--authorizer"
+      - "CassandraAuthorizer"
+    ports:
+      - "9042:9042"
+    volumes:
+      - registration_saga_service_scylla_data:/var/lib/scylla
+
+  registration-saga-service-scylla-init:
+    image: scylladb/scylla:2025.4
+    depends_on:
+      registration-saga-service-scylla:
+        condition: service_started
+    restart: "no"
+    entrypoint:
+      - "/bin/bash"
+      - "-lc"
+    command:
+      - |
+        until cqlsh registration-saga-service-scylla 9042 -u cassandra -p cassandra -e "DESCRIBE KEYSPACES" >/dev/null 2>&1; do
+          sleep 2
+        done
+        cqlsh registration-saga-service-scylla 9042 -u cassandra -p cassandra -e "CREATE ROLE IF NOT EXISTS admin WITH PASSWORD = 'admin' AND LOGIN = true AND SUPERUSER = true;"
+
+volumes:
+  registration_saga_service_scylla_data:

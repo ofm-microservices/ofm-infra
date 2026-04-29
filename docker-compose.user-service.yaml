@@ -1,0 +1,36 @@
+services:
+  user-service-redis:
+    image: redis:8-alpine
+    container_name: ofm-user-service-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - user_service_redis_data:/data
+
+  user-service-yugabyte:
+    image: yugabytedb/yugabyte:2025.2.2.2-b11
+    container_name: ofm-user-service-yugabyte
+    restart: unless-stopped
+    command: ["bin/yugabyted", "start", "--daemon=false"]
+    ports:
+      - "5433:5433"
+      - "7000:7000"
+      - "9000:9000"
+      - "15433:15433"
+    volumes:
+      - user_service_yugabyte_data:/home/yugabyte/var
+
+  user-service-yugabyte-init:
+    image: yugabytedb/yugabyte:2025.2.2.2-b11
+    container_name: ofm-user-service-yugabyte-init
+    depends_on:
+      - user-service-yugabyte
+    restart: "no"
+    entrypoint: ["/bin/bash", "/scripts/init-user-yugabyte.sh"]
+    volumes:
+      - ./scripts/init-user-yugabyte.sh:/scripts/init-user-yugabyte.sh:ro
+
+volumes:
+  user_service_redis_data:
+  user_service_yugabyte_data:
