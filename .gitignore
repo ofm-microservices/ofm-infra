@@ -5,6 +5,7 @@ bin/
 dist/
 coverage.out
 *.test
+registration-log.txt
 
 # IDE/editor files
 .idea/

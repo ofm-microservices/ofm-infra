@@ -16,11 +16,21 @@ infra-all:
 infra-down:
     {{compose}} down
 
+infra-volumes-delete-all:
+    {{compose}} down -v --remove-orphans
+    {{asyncapi_compose}} down -v --remove-orphans
+    {{swagger_compose}} down -v --remove-orphans
+    {{grpc_docs_compose}} down -v --remove-orphans
+    {{sonarqube_compose}} down -v --remove-orphans
+
 infra-logs:
     {{compose}} logs -f
 
 infra-ps:
     {{compose}} ps
+
+registration-flow:
+    bash ./scripts/registration-flow.sh
 
 asyncapi-docs-validate:
     {{asyncapi_compose}} run --rm asyncapi-validate
@@ -80,6 +90,13 @@ sonarqube-up:
 sonarqube-down:
     {{sonarqube_compose}} down
 
+sonarqube-volumes-delete:
+    docker volume rm \
+        ofm-infra_sonarqube_postgres_data \
+        ofm-infra_sonarqube_data \
+        ofm-infra_sonarqube_extensions \
+        ofm-infra_sonarqube_logs 2>/dev/null || true
+
 sonarqube-logs:
     {{sonarqube_compose}} logs -f
 
@@ -93,7 +110,7 @@ sonarqube-uncovered repo_dir project_key:
     zsh ./scripts/sonarqube-uncovered.sh {{repo_dir}} {{project_key}}
 
 sonarqube-coverage-analysis repo_dir project_key:
-    zsh ./scripts/sonarqube-coverage-analysis.sh {{repo_dir}} {{project_key}}
+    zsh ./scripts/sonarqube-coverage-analysis.sh {{repo_dir}} {{project_key}} --all
 
 sonarqube-coverage-analysis-all repo_dir project_key:
     zsh ./scripts/sonarqube-coverage-analysis.sh {{repo_dir}} {{project_key}} --all
