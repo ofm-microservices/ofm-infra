@@ -1,0 +1,57 @@
+services:
+  prometheus:
+    image: prom/prometheus:v3.7.3
+    container_name: ofm-prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    ports:
+      - "9095:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+  grafana:
+    image: grafana/grafana:12.3.0
+    container_name: ofm-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.8
+    container_name: ofm-clickhouse
+    restart: unless-stopped
+    ports:
+      - "9097:8123"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+
+  tempo:
+    image: grafana/tempo:2.10.0
+    container_name: ofm-tempo
+    restart: unless-stopped
+    command:
+      - "-config.file=/etc/tempo.yaml"
+    ports:
+      - "9096:3200"
+    volumes:
+      - ./observability/tempo/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo_data:/var/tempo
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  clickhouse_data:
+  tempo_data:

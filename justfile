@@ -6,6 +6,7 @@ asyncapi_compose := "docker compose -f docker-compose.asyncapi.yaml"
 swagger_compose := "docker compose -f docker-compose.swagger.yaml"
 grpc_docs_compose := "docker compose -f docker-compose.grpc-docs.yaml"
 sonarqube_compose := "docker compose -f docker-compose.sonarqube.yaml"
+observability_compose := "docker compose -p ofm-observability -f docker-compose.observability.yaml"
 
 infra-up:
     {{compose}} up -d --remove-orphans
@@ -117,6 +118,18 @@ sonarqube-logs:
 
 sonarqube-ps:
     {{sonarqube_compose}} ps
+
+observability-up:
+    {{observability_compose}} up -d --remove-orphans
+
+observability-down:
+    docker compose -p ofm-observability -f docker-compose.observability.yaml down --remove-orphans
+
+observability-logs:
+    {{observability_compose}} logs -f
+
+observability-ps:
+    {{observability_compose}} ps
 
 sonarqube-scan repo_dir project_key project_name:
     zsh ./scripts/sonarqube-scan.sh {{repo_dir}} {{project_key}} "{{project_name}}"
