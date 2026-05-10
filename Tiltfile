@@ -8,6 +8,20 @@ local_resource(
 )
 
 local_resource(
+    'gig-service',
+    serve_cmd='cd ../ofm-gig-service && export GOCACHE=/tmp/ofm-gig-service-gocache && export NATS_URL=nats://127.0.0.1:4222 && export DB_HOST=127.0.0.1 && export DB_PORT=5435 && export DB_USER=admin && export DB_PASSWORD=admin && export DB_NAME=gig_service && export REDIS_HOST=127.0.0.1 && export REDIS_PORT=6380 && export FILE_SERVICE_ADDRESS=127.0.0.1:9096 && exec go run ./cmd/gig-service',
+    deps=['../ofm-gig-service', '../ofm-common'],
+    labels=['app', 'gig-service'],
+)
+
+local_resource(
+    'file-service',
+    serve_cmd='cd ../ofm-file-service && export GOCACHE=/tmp/ofm-file-service-gocache && export APP_ENV=local && export LOG_LEVEL=info && export GRPC_HOST=0.0.0.0 && export GRPC_PORT=9096 && export SCYLLA_HOSTS=127.0.0.1 && export SCYLLA_PORT=9043 && export SCYLLA_KEYSPACE=file_service && export SCYLLA_USERNAME=admin && export SCYLLA_PASSWORD=admin && export REDIS_HOST=127.0.0.1 && export REDIS_PORT=6381 && export RUSTFS_ENDPOINT=http://127.0.0.1:9006 && export RUSTFS_ACCESS_KEY=rustfsadmin && export RUSTFS_SECRET_KEY=rustfsadmin && export RUSTFS_BUCKET=ofm-files && exec go run ./cmd/file-service',
+    deps=['../ofm-file-service', '../ofm-common'],
+    labels=['app', 'file-service'],
+)
+
+local_resource(
     'auth-service',
     serve_cmd='cd ../ofm-auth-service && export GOCACHE=/tmp/ofm-auth-service-gocache && export NATS_URL=nats://127.0.0.1:4222 && export DB_HOST=127.0.0.1 && export DB_PORT=5434 && exec go run ./cmd/auth-service',
     deps=['../ofm-auth-service', '../ofm-common'],
@@ -30,7 +44,7 @@ local_resource(
 
 local_resource(
     'api-gateway',
-    serve_cmd='cd ../ofm-api-gateway && export GOCACHE=/tmp/ofm-api-gateway-gocache && export NATS_URL=nats://127.0.0.1:4222 && export REGISTRATION_SAGA_ADDRESS=127.0.0.1:9090 && export AUTH_SERVICE_ADDRESS=127.0.0.1:9091 && exec go run ./cmd/api-gateway',
+    serve_cmd='cd ../ofm-api-gateway && export GOCACHE=/tmp/ofm-api-gateway-gocache && export NATS_URL=nats://127.0.0.1:4222 && export REGISTRATION_SAGA_ADDRESS=127.0.0.1:9090 && export AUTH_SERVICE_ADDRESS=127.0.0.1:9091 && export GIG_SERVICE_ADDRESS=127.0.0.1:9093 && exec go run ./cmd/api-gateway',
     deps=['../ofm-api-gateway', '../ofm-common'],
     labels=['app', 'api-gateway'],
 )

@@ -220,6 +220,7 @@ just sonarqube-scan-common
 just sonarqube-scan-api-gateway
 just sonarqube-scan-auth-service
 just sonarqube-scan-user-service
+just sonarqube-scan-file-service
 just sonarqube-scan-mail-service
 just sonarqube-scan-registration-saga-service
 ```

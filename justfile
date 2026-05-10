@@ -1,20 +1,20 @@
 set shell := ["zsh", "-cu"]
 set dotenv-load := true
 
-compose := "docker compose -f docker-compose.nats.yaml -f docker-compose.user-service.yaml -f docker-compose.auth-service.yaml -f docker-compose.registration-saga-service.yaml"
+compose := "docker compose -f docker-compose.nats.yaml -f docker-compose.user-service.yaml -f docker-compose.auth-service.yaml -f docker-compose.gig-service.yaml -f docker-compose.registration-saga-service.yaml -f docker-compose.file-service.yaml"
 asyncapi_compose := "docker compose -f docker-compose.asyncapi.yaml"
 swagger_compose := "docker compose -f docker-compose.swagger.yaml"
 grpc_docs_compose := "docker compose -f docker-compose.grpc-docs.yaml"
 sonarqube_compose := "docker compose -f docker-compose.sonarqube.yaml"
 
 infra-up:
-    {{compose}} up -d
+    {{compose}} up -d --remove-orphans
 
 infra-all:
-    {{compose}} up -d --force-recreate
+    {{compose}} up -d --force-recreate --remove-orphans
 
 infra-down:
-    {{compose}} down
+    {{compose}} down --remove-orphans
 
 infra-volumes-delete-all:
     {{compose}} down -v --remove-orphans
@@ -22,6 +22,18 @@ infra-volumes-delete-all:
     {{swagger_compose}} down -v --remove-orphans
     {{grpc_docs_compose}} down -v --remove-orphans
     {{sonarqube_compose}} down -v --remove-orphans
+
+file-service-up:
+    docker compose -f docker-compose.file-service.yaml up -d --remove-orphans
+
+file-service-down:
+    docker compose -f docker-compose.file-service.yaml down --remove-orphans
+
+file-service-logs:
+    docker compose -f docker-compose.file-service.yaml logs -f
+
+file-service-ps:
+    docker compose -f docker-compose.file-service.yaml ps
 
 infra-logs:
     {{compose}} logs -f
@@ -31,6 +43,9 @@ infra-ps:
 
 registration-flow:
     bash ./scripts/registration-flow.sh
+
+gig-flow:
+    bash ./scripts/gig-flow.sh
 
 asyncapi-docs-validate:
     {{asyncapi_compose}} run --rm asyncapi-validate
@@ -127,6 +142,12 @@ sonarqube-scan-auth-service:
 sonarqube-scan-user-service:
     just sonarqube-scan ofm-user-service ofm-user-service "OFM User Service"
 
+sonarqube-scan-file-service:
+    just sonarqube-scan ofm-file-service ofm-file-service "OFM File Service"
+
+sonarqube-scan-gig-service:
+    just sonarqube-scan ofm-gig-service ofm-gig-service "OFM Gig Service"
+
 sonarqube-scan-mail-service:
     just sonarqube-scan ofm-mail-service ofm-mail-service "OFM Mail Service"
 
@@ -138,6 +159,8 @@ sonarqube-scan-all:
     just sonarqube-scan-api-gateway
     just sonarqube-scan-auth-service
     just sonarqube-scan-user-service
+    just sonarqube-scan-file-service
+    just sonarqube-scan-gig-service
     just sonarqube-scan-mail-service
     just sonarqube-scan-registration-saga-service
 
@@ -152,6 +175,12 @@ sonarqube-coverage-analysis-auth-service:
 
 sonarqube-coverage-analysis-user-service:
     just sonarqube-coverage-analysis ofm-user-service ofm-user-service
+
+sonarqube-coverage-analysis-file-service:
+    just sonarqube-coverage-analysis ofm-file-service ofm-file-service
+
+sonarqube-coverage-analysis-gig-service:
+    just sonarqube-coverage-analysis ofm-gig-service ofm-gig-service
 
 sonarqube-coverage-analysis-user-service-all:
     just sonarqube-coverage-analysis-all ofm-user-service ofm-user-service

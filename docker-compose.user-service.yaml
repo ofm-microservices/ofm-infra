@@ -27,7 +27,7 @@ services:
     depends_on:
       - user-service-yugabyte
     restart: "no"
-    entrypoint: ["/bin/bash", "/scripts/init-user-yugabyte.sh"]
+    entrypoint: ["/bin/bash", "-lc", "bash /scripts/init-user-yugabyte.sh"]
     volumes:
       - ./scripts/init-user-yugabyte.sh:/scripts/init-user-yugabyte.sh:ro
 

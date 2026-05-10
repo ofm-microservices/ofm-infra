@@ -1,0 +1,36 @@
+services:
+  gig-service-redis:
+    image: redis:8-alpine
+    container_name: ofm-gig-service-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - gig_service_redis_data:/data
+
+  gig-service-yugabyte:
+    image: yugabytedb/yugabyte:2025.2.2.2-b11
+    container_name: ofm-gig-service-yugabyte
+    restart: unless-stopped
+    command: ["bin/yugabyted", "start", "--daemon=false"]
+    ports:
+      - "5435:5433"
+      - "7002:7000"
+      - "9002:9000"
+      - "15435:15433"
+    volumes:
+      - gig_service_yugabyte_data:/home/yugabyte/var
+
+  gig-service-yugabyte-init:
+    image: yugabytedb/yugabyte:2025.2.2.2-b11
+    container_name: ofm-gig-service-yugabyte-init
+    depends_on:
+      - gig-service-yugabyte
+    restart: "no"
+    entrypoint: ["/bin/bash", "-lc", "bash /scripts/init-gig-yugabyte.sh"]
+    volumes:
+      - ./scripts/init-gig-yugabyte.sh:/scripts/init-gig-yugabyte.sh:ro
+
+volumes:
+  gig_service_redis_data:
+  gig_service_yugabyte_data:

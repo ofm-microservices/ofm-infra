@@ -18,7 +18,7 @@ services:
     depends_on:
       - auth-service-yugabyte
     restart: "no"
-    entrypoint: ["/bin/bash", "/scripts/init-auth-yugabyte.sh"]
+    entrypoint: ["/bin/bash", "-lc", "bash /scripts/init-auth-yugabyte.sh"]
     volumes:
       - ./scripts/init-auth-yugabyte.sh:/scripts/init-auth-yugabyte.sh:ro
 

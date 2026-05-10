@@ -27,3 +27,5 @@ if ! ysqlsh -h "${host}" -U "${bootstrap_user}" -d "${admin_db}" -tAc "SELECT 1 
 fi
 
 ysqlsh -h "${host}" -U "${bootstrap_user}" -d "${service_db}" -c "ALTER DATABASE ${service_db} OWNER TO admin;" || true
+
+exit 0

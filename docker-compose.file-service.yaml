@@ -1,0 +1,86 @@
+services:
+  file-service-scylla:
+    image: scylladb/scylla:2025.4
+    container_name: ofm-file-service-scylla
+    restart: unless-stopped
+    command:
+      - "--smp"
+      - "1"
+      - "--memory"
+      - "1G"
+      - "--overprovisioned"
+      - "1"
+      - "--api-address"
+      - "0.0.0.0"
+      - "--authenticator"
+      - "PasswordAuthenticator"
+      - "--authorizer"
+      - "CassandraAuthorizer"
+    ports:
+      - "9043:9042"
+    volumes:
+      - file_service_scylla_data:/var/lib/scylla
+
+  file-service-scylla-init:
+    image: scylladb/scylla:2025.4
+    depends_on:
+      file-service-scylla:
+        condition: service_started
+    restart: "no"
+    entrypoint:
+      - "/bin/bash"
+      - "-lc"
+    command:
+      - |
+        until cqlsh file-service-scylla 9042 -u cassandra -p cassandra -e "DESCRIBE KEYSPACES" >/dev/null 2>&1; do
+          sleep 2
+        done
+        cqlsh file-service-scylla 9042 -u cassandra -p cassandra -e "CREATE ROLE IF NOT EXISTS admin WITH PASSWORD = 'admin' AND LOGIN = true AND SUPERUSER = true;"
+
+  file-service-rustfs:
+    image: rustfs/rustfs:latest
+    container_name: ofm-file-service-rustfs
+    restart: unless-stopped
+    command: ["/data"]
+    environment:
+      RUSTFS_ACCESS_KEY: rustfsadmin
+      RUSTFS_SECRET_KEY: rustfsadmin
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "9006:9000"
+      - "9007:9001"
+    volumes:
+      - file_service_rustfs_data:/data
+
+  file-service:
+    build:
+      context: ..
+      dockerfile: ofm-file-service/Dockerfile
+    container_name: ofm-file-service
+    restart: unless-stopped
+    depends_on:
+      file-service-scylla:
+        condition: service_started
+      file-service-rustfs:
+        condition: service_started
+    environment:
+      APP_ENV: local
+      LOG_LEVEL: info
+      GRPC_HOST: 0.0.0.0
+      GRPC_PORT: 9094
+      SCYLLA_HOSTS: file-service-scylla
+      SCYLLA_PORT: 9042
+      SCYLLA_KEYSPACE: file_service
+      SCYLLA_USERNAME: admin
+      SCYLLA_PASSWORD: admin
+      RUSTFS_ENDPOINT: http://file-service-rustfs:9000
+      RUSTFS_ACCESS_KEY: rustfsadmin
+      RUSTFS_SECRET_KEY: rustfsadmin
+      RUSTFS_REGION: us-east-1
+      RUSTFS_BUCKET: ofm-files
+    ports:
+      - "9094:9094"
+
+volumes:
+  file_service_scylla_data:
+  file_service_rustfs_data:

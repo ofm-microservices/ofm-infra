@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-host="auth-service-yugabyte"
+host="gig-service-yugabyte"
 admin_db="yugabyte"
-service_db="auth_service"
+service_db="gig_service"
 bootstrap_user="yugabyte"
 
 until ysqlsh -h "${host}" -U "${bootstrap_user}" -d "${admin_db}" -c "SELECT 1" >/dev/null 2>&1; do
