@@ -62,6 +62,7 @@ services:
       - "9097:8123"
     volumes:
       - clickhouse_data:/var/lib/clickhouse
+      - ./observability/clickhouse/users.xml:/etc/clickhouse-server/users.d/ofm.xml:ro
       - ./observability/clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
   tempo:

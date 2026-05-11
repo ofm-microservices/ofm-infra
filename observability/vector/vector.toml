@@ -9,40 +9,47 @@ exclude_containers = ["ofm-vector", "ofm-clickhouse", "ofm-grafana", "ofm-promet
 type = "remap"
 inputs = ["docker"]
 source = '''
-.raw = string!(.message)
+.raw = to_string(.message) ?? ""
 parsed, err = parse_json(.message)
 if err == null && is_object(parsed) {
   . = parsed
 }
 
-.message = string!(.message)
-.service = string!(.service)
-.env = string!(.env)
-.module = string!(.module)
-.level = string!(.level)
-.msg = string!(.msg)
-.trace_id = string!(.trace_id)
-.span_id = string!(.span_id)
-.error = string!(.error)
-.stacktrace = string!(.stacktrace)
-.route = string!(.route)
-.subject = string!(.subject)
-.status = string!(.status)
-.pid = string!(.pid)
-.container_name = string!(.container_name)
+.message = to_string(.message) ?? ""
+.service = to_string(.service) ?? ""
+.env = to_string(.env) ?? ""
+.module = to_string(.module) ?? ""
+.operation = to_string(.operation) ?? ""
+.level = to_string(.level) ?? ""
+.msg = to_string(.msg) ?? .message
+.trace_id = to_string(.trace_id) ?? ""
+.span_id = to_string(.span_id) ?? ""
+.error = to_string(.error) ?? ""
+.stacktrace = to_string(.stacktrace) ?? ""
+.route = to_string(.route) ?? ""
+.subject = to_string(.subject) ?? ""
+.status = to_string(.status) ?? ""
+.pid = to_string(.pid) ?? ""
+.container_name = to_string(.container_name) ?? ""
+.attempt = to_int(.attempt) ?? 1
+.retryable = to_bool(.retryable) ?? false
+.duration_ms = to_int(.duration_ms) ?? 0
 '''
 
 [sinks.clickhouse]
 type = "clickhouse"
 inputs = ["normalize"]
 endpoint = "http://clickhouse:8123"
+auth.strategy = "basic"
+auth.user = "admin"
+auth.password = "admin"
 database = "default"
 table = "ofm_logs"
 format = "json_each_row"
 compression = "none"
 date_time_best_effort = true
 encoding.timestamp_format = "rfc3339"
-encoding.only_fields = ["timestamp", "service", "env", "module", "level", "msg", "message", "trace_id", "span_id", "error", "stacktrace", "route", "subject", "status", "pid", "container_name", "raw"]
+encoding.only_fields = ["timestamp", "service", "env", "module", "operation", "level", "msg", "message", "trace_id", "span_id", "attempt", "retryable", "duration_ms", "error", "stacktrace", "route", "subject", "status", "pid", "container_name", "raw"]
 healthcheck.enabled = false
 [sinks.clickhouse.batch]
 max_events = 500

@@ -25,9 +25,12 @@ datasources:
       host: clickhouse
       port: 8123
       protocol: http
+      username: admin
       defaultDatabase: default
       secure: false
       tlsSkipVerify: false
+    secureJsonData:
+      password: admin
   - name: Tempo
     type: tempo
     uid: tempo
