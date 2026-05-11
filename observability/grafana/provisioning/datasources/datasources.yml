@@ -16,3 +16,62 @@ datasources:
     orgId: 1
     url: http://prometheus:9090
     isDefault: true
+  - name: ClickHouse
+    type: grafana-clickhouse-datasource
+    uid: clickhouse
+    access: proxy
+    orgId: 1
+    jsonData:
+      host: clickhouse
+      port: 8123
+      protocol: http
+      defaultDatabase: default
+      secure: false
+      tlsSkipVerify: false
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    access: proxy
+    orgId: 1
+    url: http://host.docker.internal:9096
+    jsonData:
+      serviceMap:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true
+      search:
+        hide: false
+      traceQuery:
+        timeShiftEnabled: true
+        spanStartTimeShift: -1h
+        spanEndTimeShift: 1h
+      spanBar:
+        type: Tag
+        tag: http.route
+      tracesToLogsV2:
+        datasourceUid: clickhouse
+        spanStartTimeShift: -1h
+        spanEndTimeShift: 1h
+        tags:
+          - key: service.name
+            value: service
+          - key: deployment.environment
+            value: env
+          - key: operation
+            value: operation
+        filterByTraceID: true
+        filterBySpanID: false
+        customQuery: true
+        query: trace_id="$${__trace.traceId}"
+      tracesToMetrics:
+        datasourceUid: prometheus
+        spanStartTimeShift: -1h
+        spanEndTimeShift: 1h
+        tags:
+          - key: service.name
+            value: service
+          - key: deployment.environment
+            value: env
+        queries:
+          - name: Span latency
+            query: sum(rate(traces_spanmetrics_latency_bucket{$$__tags}[5m]))

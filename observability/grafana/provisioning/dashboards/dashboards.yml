@@ -10,4 +10,4 @@ providers:
     allowUiUpdates: true
     updateIntervalSeconds: 30
     options:
-      path: /var/lib/grafana/dashboards/ofm
+      path: /var/lib/grafana/dashboards/provisioned

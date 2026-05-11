@@ -3,11 +3,13 @@ services:
     image: scylladb/scylla:2025.4
     container_name: ofm-file-service-scylla
     restart: unless-stopped
+    mem_limit: 2g
+    cpus: "2.00"
     command:
       - "--smp"
       - "1"
       - "--memory"
-      - "1G"
+      - "512M"
       - "--overprovisioned"
       - "1"
       - "--api-address"
@@ -27,6 +29,8 @@ services:
       file-service-scylla:
         condition: service_started
     restart: "no"
+    mem_limit: 256m
+    cpus: "0.25"
     entrypoint:
       - "/bin/bash"
       - "-lc"
@@ -41,6 +45,8 @@ services:
     image: rustfs/rustfs:latest
     container_name: ofm-file-service-rustfs
     restart: unless-stopped
+    mem_limit: 512m
+    cpus: "0.50"
     command: ["/data"]
     environment:
       RUSTFS_ACCESS_KEY: rustfsadmin

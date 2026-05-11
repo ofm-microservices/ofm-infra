@@ -1,11 +1,30 @@
 services:
+  vector:
+    image: timberio/vector:0.47.0-alpine
+    container_name: ofm-vector
+    restart: unless-stopped
+    user: root
+    mem_limit: 512m
+    cpus: "0.50"
+    command:
+      - "-c"
+      - "/etc/vector/vector.toml"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./observability/vector/vector.toml:/etc/vector/vector.toml:ro
+    depends_on:
+      - clickhouse
+
   prometheus:
     image: prom/prometheus:v3.7.3
     container_name: ofm-prometheus
     restart: unless-stopped
+    mem_limit: 512m
+    cpus: "0.50"
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-remote-write-receiver"
     ports:
       - "9095:9090"
     extra_hosts:
@@ -18,14 +37,18 @@ services:
     image: grafana/grafana:12.3.0
     container_name: ofm-grafana
     restart: unless-stopped
+    mem_limit: 512m
+    cpus: "0.50"
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
     ports:
       - "3000:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
-      - grafana_data:/var/lib/grafana
+      - grafana_state:/var/lib/grafana
       - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
 
@@ -33,15 +56,20 @@ services:
     image: clickhouse/clickhouse-server:25.8
     container_name: ofm-clickhouse
     restart: unless-stopped
+    mem_limit: 2g
+    cpus: "2.00"
     ports:
       - "9097:8123"
     volumes:
       - clickhouse_data:/var/lib/clickhouse
+      - ./observability/clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
   tempo:
     image: grafana/tempo:2.10.0
     container_name: ofm-tempo
     restart: unless-stopped
+    mem_limit: 512m
+    cpus: "0.50"
     command:
       - "-config.file=/etc/tempo.yaml"
     ports:
@@ -50,8 +78,25 @@ services:
       - ./observability/tempo/tempo.yaml:/etc/tempo.yaml:ro
       - tempo_data:/var/tempo
 
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.120.0
+    container_name: ofm-otel-collector
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: "0.50"
+    command:
+      - "--config=/etc/otel-collector.yaml"
+    ports:
+      - "9098:4317"
+      - "9099:4318"
+      - "9094:8888"
+    volumes:
+      - ./observability/otel-collector/otel-collector.yaml:/etc/otel-collector.yaml:ro
+    depends_on:
+      - tempo
+
 volumes:
   prometheus_data:
-  grafana_data:
+  grafana_state:
   clickhouse_data:
   tempo_data:

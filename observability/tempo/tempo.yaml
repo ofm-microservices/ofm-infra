@@ -6,7 +6,9 @@ distributor:
     otlp:
       protocols:
         grpc:
+          endpoint: 0.0.0.0:4317
         http:
+          endpoint: 0.0.0.0:4318
 
 ingester:
   trace_idle_period: 10s
@@ -25,10 +27,19 @@ storage:
       path: /var/tempo/wal
 
 metrics_generator:
+  registry:
+    collection_interval: 15s
+  processor:
+    local_blocks:
+      filter_server_spans: false
   storage:
     path: /var/tempo/generator/wal
+    remote_write:
+      - url: http://prometheus:9090/api/v1/write
+    remote_write_add_org_id_header: false
+    remote_write_flush_deadline: 30s
 
 overrides:
   defaults:
     metrics_generator:
-      processors: [service-graphs, span-metrics]
+      processors: [service-graphs, span-metrics, local-blocks]

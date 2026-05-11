@@ -3,6 +3,8 @@ services:
     image: swaggerapi/swagger-ui:v5.32.4
     container_name: ofm-api-gateway-swagger-ui
     restart: unless-stopped
+    mem_limit: 128m
+    cpus: "0.25"
     ports:
       - "8082:8080"
     environment:

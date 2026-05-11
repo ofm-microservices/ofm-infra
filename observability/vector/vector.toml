@@ -1,0 +1,49 @@
+data_dir = "/var/lib/vector"
+
+[sources.docker]
+type = "docker_logs"
+include_containers = ["ofm-api-gateway", "ofm-auth-service", "ofm-user-service", "ofm-registration-saga-service", "ofm-gig-service", "ofm-file-service", "ofm-mail-service"]
+exclude_containers = ["ofm-vector", "ofm-clickhouse", "ofm-grafana", "ofm-prometheus", "ofm-tempo", "ofm-otel-collector"]
+
+[transforms.normalize]
+type = "remap"
+inputs = ["docker"]
+source = '''
+.raw = string!(.message)
+parsed, err = parse_json(.message)
+if err == null && is_object(parsed) {
+  . = parsed
+}
+
+.message = string!(.message)
+.service = string!(.service)
+.env = string!(.env)
+.module = string!(.module)
+.level = string!(.level)
+.msg = string!(.msg)
+.trace_id = string!(.trace_id)
+.span_id = string!(.span_id)
+.error = string!(.error)
+.stacktrace = string!(.stacktrace)
+.route = string!(.route)
+.subject = string!(.subject)
+.status = string!(.status)
+.pid = string!(.pid)
+.container_name = string!(.container_name)
+'''
+
+[sinks.clickhouse]
+type = "clickhouse"
+inputs = ["normalize"]
+endpoint = "http://clickhouse:8123"
+database = "default"
+table = "ofm_logs"
+format = "json_each_row"
+compression = "none"
+date_time_best_effort = true
+encoding.timestamp_format = "rfc3339"
+encoding.only_fields = ["timestamp", "service", "env", "module", "level", "msg", "message", "trace_id", "span_id", "error", "stacktrace", "route", "subject", "status", "pid", "container_name", "raw"]
+healthcheck.enabled = false
+[sinks.clickhouse.batch]
+max_events = 500
+timeout_secs = 2

@@ -2,6 +2,8 @@ services:
   grpc-docs-generate:
     image: gendocu/grpc-docs
     container_name: ofm-grpc-docs-generate
+    mem_limit: 256m
+    cpus: "0.25"
     volumes:
       - ../ofm-common/proto:/input:ro
       - ../ofm-docs/grpc:/output
@@ -10,6 +12,8 @@ services:
     image: nginx:alpine
     container_name: ofm-grpc-docs-preview
     restart: unless-stopped
+    mem_limit: 128m
+    cpus: "0.25"
     ports:
       - "8083:80"
     volumes:

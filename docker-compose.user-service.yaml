@@ -3,6 +3,8 @@ services:
     image: redis:8-alpine
     container_name: ofm-user-service-redis
     restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.50"
     ports:
       - "6379:6379"
     volumes:
@@ -12,6 +14,8 @@ services:
     image: yugabytedb/yugabyte:2025.2.2.2-b11
     container_name: ofm-user-service-yugabyte
     restart: unless-stopped
+    mem_limit: 2g
+    cpus: "2.00"
     command: ["bin/yugabyted", "start", "--daemon=false"]
     ports:
       - "5433:5433"
@@ -27,6 +31,8 @@ services:
     depends_on:
       - user-service-yugabyte
     restart: "no"
+    mem_limit: 256m
+    cpus: "0.25"
     entrypoint: ["/bin/bash", "-lc", "bash /scripts/init-user-yugabyte.sh"]
     volumes:
       - ./scripts/init-user-yugabyte.sh:/scripts/init-user-yugabyte.sh:ro

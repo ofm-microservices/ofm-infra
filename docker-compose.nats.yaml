@@ -3,6 +3,8 @@ services:
     image: nats:2.12.4-alpine
     container_name: ofm-nats
     restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.50"
     command:
       - "-js"
       - "-m"
