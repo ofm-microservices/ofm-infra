@@ -25,6 +25,7 @@ services:
 
   registration-saga-service-scylla-init:
     image: scylladb/scylla:2025.4
+    container_name: ofm-registration-saga-service-scylla-init
     depends_on:
       registration-saga-service-scylla:
         condition: service_started

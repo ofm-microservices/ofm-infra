@@ -13,6 +13,11 @@ The local stack currently includes:
 - `user-service-redis`
 - `auth-service-yugabyte`
 - `registration-saga-service-scylla`
+- `order-saga-service-scylla`
+- `order-service-yugabyte`
+- `order-service-redis`
+- `payment-service-yugabyte`
+- `payment-service-redis`
 
 ## Compose
 
@@ -22,6 +27,9 @@ The stack is split across dedicated Compose files:
 - `docker-compose.user-service.yaml`
 - `docker-compose.auth-service.yaml`
 - `docker-compose.registration-saga-service.yaml`
+- `docker-compose.order-saga-service.yaml`
+- `docker-compose.order-service.yaml`
+- `docker-compose.payment-service.yaml`
 
 Run the full stack with:
 
@@ -40,6 +48,28 @@ just infra-logs
 just infra-ps
 ```
 
+### Stripe onboarding helper
+
+Print the freelancer onboarding URL returned by the gateway:
+
+```bash
+JWT_TOKEN=... just payment-onboarding-flow
+```
+
+### Payment flow
+
+Bring up only the payment stack infrastructure:
+
+```bash
+just payment-infra-up
+```
+
+Run only the payment-oriented Tilt resources:
+
+```bash
+just payment-tilt-up
+```
+
 ## Tilt
 
 Tilt is the preferred interactive runner for the Go applications only.
@@ -50,6 +80,9 @@ The runtime split is intentional:
 - Tilt runs only your Go services as local processes with `go run`
 
 That keeps application iteration fast while leaving NATS, YugabyteDB, Redis, and ScyllaDB in containers.
+Realtime service is Tilt-only as well and is not started by the Compose stack.
+
+For the lightweight payment workflow, use `just payment-infra-up` instead of `just infra-up`.
 
 The Tilt entrypoint is [Tiltfile](/home/alex/projects/ofm-microservices/ofm-infra/Tiltfile).
 
@@ -83,6 +116,8 @@ Tilt exposes only local Go application resources:
 - `user-service`
 - `mail-service`
 - `api-gateway`
+- `payment-service`
+- `realtime-service`
 
 Resources are labeled for filtering:
 

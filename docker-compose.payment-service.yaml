@@ -1,0 +1,42 @@
+services:
+  payment-service-redis:
+    image: redis:8-alpine
+    container_name: ofm-payment-service-redis
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.50"
+    ports:
+      - "6381:6379"
+    volumes:
+      - payment_service_redis_data:/data
+
+  payment-service-yugabyte:
+    image: yugabytedb/yugabyte:2025.2.2.2-b11
+    container_name: ofm-payment-service-yugabyte
+    restart: unless-stopped
+    mem_limit: 2g
+    cpus: "2.00"
+    command: ["bin/yugabyted", "start", "--daemon=false"]
+    ports:
+      - "5436:5433"
+      - "7003:7000"
+      - "9003:9000"
+      - "15436:15433"
+    volumes:
+      - payment_service_yugabyte_data:/home/yugabyte/var
+
+  payment-service-yugabyte-init:
+    image: yugabytedb/yugabyte:2025.2.2.2-b11
+    container_name: ofm-payment-service-yugabyte-init
+    depends_on:
+      - payment-service-yugabyte
+    restart: "no"
+    mem_limit: 256m
+    cpus: "0.25"
+    entrypoint: ["/bin/bash", "-lc", "bash /scripts/init-payment-yugabyte.sh"]
+    volumes:
+      - ./scripts/init-payment-yugabyte.sh:/scripts/init-payment-yugabyte.sh:ro
+
+volumes:
+  payment_service_redis_data:
+  payment_service_yugabyte_data:

@@ -1,0 +1,20 @@
+services:
+  realtime-service:
+    build:
+      context: ..
+      dockerfile: ofm-realtime-service/Dockerfile
+    container_name: ofm-realtime-service
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: "1.00"
+    environment:
+      APP_NAME: realtime-service
+      APP_ENV: local
+      HTTP_PORT: "8082"
+      JWT_ACCESS_SECRET: local-dev-secret-change-me
+      NATS_URL: nats://ofm-nats:4222
+    ports:
+      - "8082:8082"
+      - "9610:9610"
+    depends_on:
+      - nats

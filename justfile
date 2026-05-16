@@ -1,7 +1,7 @@
 set shell := ["zsh", "-cu"]
 set dotenv-load := true
 
-compose := "docker compose -f docker-compose.nats.yaml -f docker-compose.user-service.yaml -f docker-compose.auth-service.yaml -f docker-compose.gig-service.yaml -f docker-compose.registration-saga-service.yaml -f docker-compose.file-service.yaml"
+compose := "docker compose -f docker-compose.nats.yaml -f docker-compose.user-service.yaml -f docker-compose.auth-service.yaml -f docker-compose.gig-service.yaml -f docker-compose.registration-saga-service.yaml -f docker-compose.order-saga-service.yaml -f docker-compose.order-service.yaml -f docker-compose.payment-service.yaml -f docker-compose.file-service.yaml"
 asyncapi_compose := "docker compose -f docker-compose.asyncapi.yaml"
 swagger_compose := "docker compose -f docker-compose.swagger.yaml"
 grpc_docs_compose := "docker compose -f docker-compose.grpc-docs.yaml"
@@ -10,6 +10,8 @@ observability_compose := "docker compose -p ofm-observability -f docker-compose.
 
 infra-up:
     {{compose}} up -d --remove-orphans
+    {{compose}} rm -fsv \
+        payment-service-yugabyte-init
 
 infra-all:
     {{compose}} up -d --force-recreate --remove-orphans
@@ -47,6 +49,30 @@ registration-flow:
 
 gig-flow:
     bash ./scripts/gig-flow.sh
+
+payment-onboarding-flow:
+    bash ./scripts/payment-onboarding-flow.sh
+
+payment-onboarding-token:
+    bash ./scripts/payment-onboarding-token.sh
+
+payment-infra-up:
+    bash ./scripts/payment-infra-up.sh
+
+payment-infra-down:
+    docker compose -f docker-compose.nats.yaml -f docker-compose.payment-service.yaml down --remove-orphans
+
+payment-infra-logs:
+    docker compose -f docker-compose.nats.yaml -f docker-compose.payment-service.yaml logs -f
+
+payment-infra-ps:
+    docker compose -f docker-compose.nats.yaml -f docker-compose.payment-service.yaml ps
+
+payment-tilt-up:
+    tilt up payment-service api-gateway
+
+payment-tilt-down:
+    tilt down
 
 asyncapi-docs-validate:
     {{asyncapi_compose}} run --rm asyncapi-validate

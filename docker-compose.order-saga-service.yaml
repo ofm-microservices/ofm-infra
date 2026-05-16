@@ -1,0 +1,44 @@
+services:
+  order-saga-service-scylla:
+    image: scylladb/scylla:2025.4
+    container_name: ofm-order-saga-service-scylla
+    restart: unless-stopped
+    mem_limit: 2g
+    cpus: "2.00"
+    command:
+      - "--smp"
+      - "1"
+      - "--memory"
+      - "512M"
+      - "--overprovisioned"
+      - "1"
+      - "--api-address"
+      - "0.0.0.0"
+      - "--authenticator"
+      - "PasswordAuthenticator"
+      - "--authorizer"
+      - "CassandraAuthorizer"
+    ports:
+      - "9044:9042"
+    volumes:
+      - order_saga_service_scylla_data:/var/lib/scylla
+
+  order-saga-service-scylla-init:
+    image: scylladb/scylla:2025.4
+    container_name: ofm-order-saga-service-scylla-init
+    depends_on:
+      order-saga-service-scylla:
+        condition: service_started
+    restart: "no"
+    mem_limit: 256m
+    cpus: "0.25"
+    entrypoint:
+      - "/bin/bash"
+      - "-lc"
+    command:
+      - "bash /scripts/init-order-saga-scylla.sh"
+    volumes:
+      - ./scripts/init-order-saga-scylla.sh:/scripts/init-order-saga-scylla.sh:ro
+
+volumes:
+  order_saga_service_scylla_data:

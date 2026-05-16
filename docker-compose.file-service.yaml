@@ -25,6 +25,7 @@ services:
 
   file-service-scylla-init:
     image: scylladb/scylla:2025.4
+    container_name: ofm-file-service-scylla-init
     depends_on:
       file-service-scylla:
         condition: service_started
