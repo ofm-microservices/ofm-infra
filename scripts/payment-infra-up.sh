@@ -19,4 +19,7 @@ while true; do
   sleep 1
 done
 
+infra::wait_exec "$(infra::container_name payment-service-yugabyte)" 300 ysqlsh -h 127.0.0.1 -U yugabyte -d yugabyte -c "SELECT 1" &
+wait
+
 "${compose[@]}" rm -fsv payment-service-yugabyte-init

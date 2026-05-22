@@ -1,3 +1,5 @@
+name: ofm-infra
+
 services:
   user-service-redis:
     image: redis:8-alpine
@@ -13,10 +15,11 @@ services:
   user-service-yugabyte:
     image: yugabytedb/yugabyte:2025.2.2.2-b11
     container_name: ofm-user-service-yugabyte
+    hostname: user-service-yugabyte
     restart: unless-stopped
     mem_limit: 2g
     cpus: "2.00"
-    command: ["bin/yugabyted", "start", "--daemon=false"]
+    command: ["bin/yugabyted", "start", "--base_dir=/home/yugabyte/var", "--advertise_address=user-service-yugabyte", "--daemon=false"]
     ports:
       - "5433:5433"
       - "7000:7000"
@@ -24,10 +27,13 @@ services:
       - "15433:15433"
     volumes:
       - user_service_yugabyte_data:/home/yugabyte/var
+      - user_service_yugabyte_disk0:/mnt/disk0
+      - user_service_yugabyte_disk1:/mnt/disk1
 
   user-service-yugabyte-init:
     image: yugabytedb/yugabyte:2025.2.2.2-b11
     container_name: ofm-user-service-yugabyte-init
+    hostname: user-service-yugabyte-init
     depends_on:
       - user-service-yugabyte
     restart: "no"
@@ -39,4 +45,10 @@ services:
 
 volumes:
   user_service_redis_data:
+    name: ofm-infra_user_service_redis_data
   user_service_yugabyte_data:
+    name: infra_user_service_yugabyte_data
+  user_service_yugabyte_disk0:
+    name: infra_user_service_yugabyte_disk0
+  user_service_yugabyte_disk1:
+    name: infra_user_service_yugabyte_disk1

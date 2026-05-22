@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-API_BASE_URL="${API_BASE_URL:-http://127.0.0.1:8080/v1}"
+API_BASE_URL="${API_BASE_URL:-http://api.ofm.local/v1}"
 COMPLETE_TIMEOUT_SECONDS="${COMPLETE_TIMEOUT_SECONDS:-60}"
 COMPLETE_POLL_SECONDS="${COMPLETE_POLL_SECONDS:-2}"
 LOG_FILE="${LOG_FILE:-registration-log.txt}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "${script_dir}/api-gateway-curl.sh"
+ofm_api_gateway_configure "$API_BASE_URL" || true
 
 touch "$LOG_FILE"
 
@@ -45,6 +48,7 @@ request_json() {
 
   status="$(
     curl -sS \
+      "${OFM_API_GATEWAY_CURL_ARGS[@]}" \
       -X "$method" \
       -H 'Content-Type: application/json' \
       -d "$payload" \
@@ -86,7 +90,7 @@ log_blank
 log 'Make sure api-gateway, registration-saga-service, user-service, auth-service, mail-service, NATS, Scylla, and Yugabyte are running.'
 log_blank
 
-if ! curl -sS --connect-timeout 2 "$API_BASE_URL/auth/sign-up" >/dev/null 2>&1; then
+if ! curl -sS "${OFM_API_GATEWAY_CURL_ARGS[@]}" --connect-timeout 2 "$API_BASE_URL/auth/sign-up" >/dev/null 2>&1; then
   log_error "api-gateway is not reachable at $API_BASE_URL"
   log_error 'Start the services first, then rerun this script.'
   exit 1
@@ -121,7 +125,7 @@ signup_payload="$(
 signup_body="$(mktemp)"
 verify_body="$(mktemp)"
 complete_body="$(mktemp)"
-trap 'rm -f "$signup_body" "$verify_body" "$complete_body"' EXIT
+trap 'rm -f "$signup_body" "$verify_body" "$complete_body"; ofm_api_gateway_cleanup' EXIT
 
 log 'Starting registration and triggering verification email...'
 log "POST $API_BASE_URL/auth/sign-up"

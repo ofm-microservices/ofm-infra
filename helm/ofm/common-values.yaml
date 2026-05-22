@@ -1,0 +1,206 @@
+global:
+  namespace: ofm
+  clusterDomain: cluster.local
+  externalHost: 172.21.0.1
+  natsHost: ""
+  nats:
+    skipLinkerdOutbound: true
+    clientPort: 4222
+    monitorPort: 8222
+  linkerd:
+    skipOutboundPorts: "4222,5433,5434,5435,5436,5437,6379,6380,6381,6382,9006,9007,9042,9043,9044"
+  vector:
+    enabled: false
+    configRevision: "1"
+    image: timberio/vector:0.47.0-alpine
+    imagePullPolicy: IfNotPresent
+    clickhouseEndpoint: ""
+    clickhouseUser: admin
+    clickhousePassword: admin
+    clickhouseDatabase: default
+    clickhouseTable: ofm_logs
+  observability:
+    enabled: false
+    grafana:
+      image: grafana/grafana:12.3.0
+      plugins: grafana-clickhouse-datasource
+    prometheus:
+      image: prom/prometheus:v3.7.3
+    tempo:
+      image: grafana/tempo:2.10.0
+    otelCollector:
+      image: otel/opentelemetry-collector-contrib:0.120.0
+    clickhouse:
+      image: clickhouse/clickhouse-server:25.8
+  hostDbBridge:
+    enabled: false
+  networkPolicy:
+    enabled: false
+  imagePullPolicy: IfNotPresent
+
+services:
+  api-gateway:
+    enabled: true
+    image: ofm/api-gateway:k3s
+    replicaCount: 1
+    ports:
+      - name: http
+        containerPort: 8080
+        servicePort: 8080
+        protocol: TCP
+      - name: metrics
+        containerPort: 9606
+        servicePort: 9606
+        protocol: TCP
+    ingress:
+      enabled: true
+      host: api.ofm.local
+      path: /
+
+  auth-service:
+    enabled: true
+    image: ofm/auth-service:k3s
+    replicaCount: 1
+    ports:
+      - name: grpc
+        containerPort: 9501
+        servicePort: 9501
+        protocol: TCP
+      - name: metrics
+        containerPort: 9601
+        servicePort: 9601
+        protocol: TCP
+
+  user-service:
+    enabled: true
+    image: ofm/user-service:k3s
+    replicaCount: 1
+    ports:
+      - name: grpc
+        containerPort: 9502
+        servicePort: 9502
+        protocol: TCP
+      - name: metrics
+        containerPort: 9602
+        servicePort: 9602
+        protocol: TCP
+
+  registration-saga-service:
+    enabled: true
+    image: ofm/registration-saga-service:k3s
+    replicaCount: 1
+    ports:
+      - name: grpc
+        containerPort: 9500
+        servicePort: 9500
+        protocol: TCP
+      - name: metrics
+        containerPort: 9600
+        servicePort: 9600
+        protocol: TCP
+
+  gig-service:
+    enabled: true
+    image: ofm/gig-service:k3s
+    replicaCount: 1
+    ports:
+      - name: grpc
+        containerPort: 9503
+        servicePort: 9503
+        protocol: TCP
+      - name: metrics
+        containerPort: 9603
+        servicePort: 9603
+        protocol: TCP
+
+  file-service:
+    enabled: true
+    image: ofm/file-service:k3s
+    replicaCount: 1
+    ports:
+      - name: grpc
+        containerPort: 9504
+        servicePort: 9504
+        protocol: TCP
+      - name: metrics
+        containerPort: 9604
+        servicePort: 9604
+        protocol: TCP
+
+  payment-service:
+    enabled: true
+    image: ofm/payment-service:k3s
+    replicaCount: 1
+    ports:
+      - name: http
+        containerPort: 8081
+        servicePort: 8081
+        protocol: TCP
+      - name: grpc
+        containerPort: 9506
+        servicePort: 9506
+        protocol: TCP
+      - name: metrics
+        containerPort: 9609
+        servicePort: 9609
+        protocol: TCP
+    ingress:
+      enabled: false
+      host: payment.ofm.local
+      path: /
+
+  order-service:
+    enabled: true
+    image: ofm/order-service:k3s
+    replicaCount: 1
+    ports:
+      - name: grpc
+        containerPort: 9505
+        servicePort: 9505
+        protocol: TCP
+      - name: metrics
+        containerPort: 9608
+        servicePort: 9608
+        protocol: TCP
+
+  order-saga-service:
+    enabled: true
+    image: ofm/order-saga-service:k3s
+    replicaCount: 1
+    ports:
+      - name: grpc
+        containerPort: 9507
+        servicePort: 9507
+        protocol: TCP
+      - name: metrics
+        containerPort: 9607
+        servicePort: 9607
+        protocol: TCP
+
+  realtime-service:
+    enabled: true
+    image: ofm/realtime-service:k3s
+    replicaCount: 1
+    ports:
+      - name: http
+        containerPort: 8082
+        servicePort: 8082
+        protocol: TCP
+      - name: metrics
+        containerPort: 9610
+        servicePort: 9610
+        protocol: TCP
+    ingress:
+      enabled: true
+      host: realtime.ofm.local
+      path: /
+
+  mail-service:
+    enabled: true
+    image: ofm/mail-service:k3s
+    replicaCount: 1
+    ports:
+      - name: metrics
+        containerPort: 9605
+        servicePort: 9605
+        protocol: TCP

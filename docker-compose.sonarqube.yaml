@@ -1,3 +1,5 @@
+name: ofm-infra
+
 services:
   sonarqube-postgres:
     image: postgres:17-alpine

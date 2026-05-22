@@ -1,0 +1,27 @@
+{{- if .Values.global.hostDbBridge.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: host-db-bridge
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "ofm.labels" . | nindent 4 }}
+spec:
+  ports:
+    - protocol: TCP
+      port: 5433
+      targetPort: 15499
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: host-db-bridge
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "ofm.labels" . | nindent 4 }}
+subsets:
+  - addresses:
+      - ip: {{ .Values.global.externalHost }}
+    ports:
+      - port: 15499
+{{- end }}

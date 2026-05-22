@@ -1,0 +1,205 @@
+{{- if .Values.global.vector.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ofm-vector
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app.kubernetes.io/component: vector
+    {{- include "ofm.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-vector
+  labels:
+    app.kubernetes.io/component: vector
+    {{- include "ofm.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces", "nodes", "pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-vector
+  labels:
+    app.kubernetes.io/component: vector
+    {{- include "ofm.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Release.Name }}-vector
+subjects:
+  - kind: ServiceAccount
+    name: ofm-vector
+    namespace: {{ .Values.global.namespace }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ofm-vector
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app.kubernetes.io/component: vector
+    {{- include "ofm.labels" . | nindent 4 }}
+data:
+  vector.toml: |
+    data_dir = "/var/lib/vector"
+
+    [sources.kubernetes]
+    type = "kubernetes_logs"
+    self_node_name = "${VECTOR_SELF_NODE_NAME}"
+    read_from = "beginning"
+
+    [transforms.ofm_only]
+    type = "filter"
+    inputs = ["kubernetes"]
+    condition = '''
+    .kubernetes.pod_namespace == "{{ .Values.global.namespace }}" &&
+      .kubernetes.container_name != "linkerd-init" &&
+      .kubernetes.container_name != "linkerd-proxy" &&
+      .kubernetes.container_name != "vector" &&
+      !includes(
+        ["clickhouse", "grafana", "otel-collector", "prometheus", "tempo"],
+        to_string(.kubernetes.pod_labels."app.kubernetes.io/component") ?? ""
+      )
+    '''
+
+    [transforms.normalize]
+    type = "remap"
+    inputs = ["ofm_only"]
+    source = '''
+    .raw = to_string(.message) ?? ""
+    .container_name = to_string(.kubernetes.container_name) ?? ""
+    .pod_name = to_string(.kubernetes.pod_name) ?? ""
+    parsed, err = parse_json(.message)
+    if err == null && is_object(parsed) {
+      . = merge!(., parsed)
+    }
+
+    .message = to_string(.message) ?? ""
+    .service = to_string(.service) ?? ""
+    if .service == "" {
+      .service = to_string(.kubernetes.pod_labels."app.kubernetes.io/component") ?? ""
+    }
+    if .service == "" {
+      .service = .container_name
+    }
+    if .service == "" {
+      .service = .pod_name
+    }
+    .env = to_string(.env) ?? ""
+    .module = to_string(.module) ?? ""
+    .operation = to_string(.operation) ?? ""
+    .level = to_string(.level) ?? ""
+    .msg = to_string(.msg) ?? .message
+    .trace_id = to_string(.trace_id) ?? ""
+    .span_id = to_string(.span_id) ?? ""
+    .error = to_string(.error) ?? ""
+    .stacktrace = to_string(.stacktrace) ?? ""
+    .route = to_string(.route) ?? ""
+    .subject = to_string(.subject) ?? ""
+    .status = to_string(.status) ?? ""
+    .pid = to_string(.pid) ?? ""
+    .attempt = to_int(.attempt) ?? 1
+    .retryable = to_bool(.retryable) ?? false
+    .duration_ms = to_int(.duration_ms) ?? 0
+    '''
+
+    [sinks.clickhouse]
+    type = "clickhouse"
+    inputs = ["normalize"]
+    endpoint = "{{ required "global.vector.clickhouseEndpoint must be set when vector is enabled" .Values.global.vector.clickhouseEndpoint }}"
+    auth.strategy = "basic"
+    auth.user = "{{ .Values.global.vector.clickhouseUser }}"
+    auth.password = "{{ .Values.global.vector.clickhousePassword }}"
+    database = "{{ .Values.global.vector.clickhouseDatabase }}"
+    table = "{{ .Values.global.vector.clickhouseTable }}"
+    format = "json_each_row"
+    compression = "none"
+    date_time_best_effort = true
+    encoding.timestamp_format = "rfc3339"
+    encoding.only_fields = ["timestamp", "service", "env", "module", "operation", "level", "msg", "message", "trace_id", "span_id", "attempt", "retryable", "duration_ms", "error", "stacktrace", "route", "subject", "status", "pid", "container_name", "raw"]
+    healthcheck.enabled = false
+
+    [sinks.clickhouse.batch]
+    max_events = 500
+    timeout_secs = 2
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: ofm-vector
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app.kubernetes.io/component: vector
+    {{- include "ofm.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: vector
+      {{- include "ofm.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: vector
+        {{- include "ofm.labels" . | nindent 8 }}
+      annotations:
+        linkerd.io/inject: disabled
+        ofm.vector/config-revision: {{ .Values.global.vector.configRevision | quote }}
+    spec:
+      serviceAccountName: ofm-vector
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: vector
+          image: {{ .Values.global.vector.image }}
+          imagePullPolicy: {{ .Values.global.vector.imagePullPolicy }}
+          args:
+            - -c
+            - /etc/vector/vector.toml
+          env:
+            - name: VECTOR_SELF_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/vector/vector.toml
+              subPath: vector.toml
+              readOnly: true
+            - name: var-log-pods
+              mountPath: /var/log/pods
+              readOnly: true
+            - name: var-log-containers
+              mountPath: /var/log/containers
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/vector
+      volumes:
+        - name: config
+          configMap:
+            name: ofm-vector
+        - name: var-log-pods
+          hostPath:
+            path: /var/log/pods
+        - name: var-log-containers
+          hostPath:
+            path: /var/log/containers
+        - name: data
+          emptyDir: {}
+{{- end }}

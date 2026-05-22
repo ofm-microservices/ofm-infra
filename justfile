@@ -6,12 +6,10 @@ asyncapi_compose := "docker compose -f docker-compose.asyncapi.yaml"
 swagger_compose := "docker compose -f docker-compose.swagger.yaml"
 grpc_docs_compose := "docker compose -f docker-compose.grpc-docs.yaml"
 sonarqube_compose := "docker compose -f docker-compose.sonarqube.yaml"
-observability_compose := "docker compose -p ofm-observability -f docker-compose.observability.yaml"
 
 infra-up:
     {{compose}} up -d --remove-orphans
-    {{compose}} rm -fsv \
-        payment-service-yugabyte-init
+    bash ./scripts/infra-up.sh
 
 infra-all:
     {{compose}} up -d --force-recreate --remove-orphans
@@ -20,6 +18,7 @@ infra-down:
     {{compose}} down --remove-orphans
 
 infra-volumes-delete-all:
+    test "$CONFIRM_DELETE_OFM_VOLUMES" = "yes"
     {{compose}} down -v --remove-orphans
     {{asyncapi_compose}} down -v --remove-orphans
     {{swagger_compose}} down -v --remove-orphans
@@ -27,16 +26,16 @@ infra-volumes-delete-all:
     {{sonarqube_compose}} down -v --remove-orphans
 
 file-service-up:
-    docker compose -f docker-compose.file-service.yaml up -d --remove-orphans
+    {{compose}} up -d file-service-scylla file-service-scylla-init file-service-rustfs
 
 file-service-down:
-    docker compose -f docker-compose.file-service.yaml down --remove-orphans
+    {{compose}} stop file-service-scylla file-service-rustfs
 
 file-service-logs:
-    docker compose -f docker-compose.file-service.yaml logs -f
+    {{compose}} logs -f file-service-scylla file-service-rustfs
 
 file-service-ps:
-    docker compose -f docker-compose.file-service.yaml ps
+    {{compose}} ps file-service-scylla file-service-rustfs
 
 infra-logs:
     {{compose}} logs -f
@@ -47,8 +46,38 @@ infra-ps:
 registration-flow:
     bash ./scripts/registration-flow.sh
 
-gig-flow:
-    bash ./scripts/gig-flow.sh
+registration-infra-up:
+    bash ./scripts/registration-infra-up.sh
+
+gig-flow *args:
+    bash ./scripts/gig-flow.sh {{args}}
+
+order-flow *args:
+    bash ./scripts/order-flow.sh {{args}}
+
+order-infra-up:
+    bash ./scripts/order-infra-up.sh
+
+order-infra-down:
+    {{compose}} stop nats order-saga-service-scylla order-service-redis order-service-yugabyte payment-service-redis payment-service-yugabyte file-service-scylla file-service-rustfs
+
+order-infra-logs:
+    {{compose}} logs -f nats order-saga-service-scylla order-service-redis order-service-yugabyte payment-service-redis payment-service-yugabyte file-service-scylla file-service-rustfs
+
+order-infra-ps:
+    {{compose}} ps nats order-saga-service-scylla order-service-redis order-service-yugabyte payment-service-redis payment-service-yugabyte file-service-scylla file-service-rustfs
+
+gig-infra-up:
+    bash ./scripts/gig-infra-up.sh
+
+gig-infra-down:
+    {{compose}} stop nats gig-service-redis gig-service-yugabyte payment-service-redis payment-service-yugabyte file-service-scylla file-service-rustfs
+
+gig-infra-logs:
+    {{compose}} logs -f nats gig-service-redis gig-service-yugabyte payment-service-redis payment-service-yugabyte file-service-scylla file-service-rustfs
+
+gig-infra-ps:
+    {{compose}} ps nats gig-service-redis gig-service-yugabyte payment-service-redis payment-service-yugabyte file-service-scylla file-service-rustfs
 
 payment-onboarding-flow:
     bash ./scripts/payment-onboarding-flow.sh
@@ -59,20 +88,50 @@ payment-onboarding-token:
 payment-infra-up:
     bash ./scripts/payment-infra-up.sh
 
+payment-webhook-ngrok:
+    ngrok http --host-header=payment.ofm.local 172.21.0.2:80
+
 payment-infra-down:
-    docker compose -f docker-compose.nats.yaml -f docker-compose.payment-service.yaml down --remove-orphans
+    {{compose}} stop nats payment-service-redis payment-service-yugabyte
 
 payment-infra-logs:
-    docker compose -f docker-compose.nats.yaml -f docker-compose.payment-service.yaml logs -f
+    {{compose}} logs -f nats payment-service-redis payment-service-yugabyte
 
 payment-infra-ps:
-    docker compose -f docker-compose.nats.yaml -f docker-compose.payment-service.yaml ps
+    {{compose}} ps nats payment-service-redis payment-service-yugabyte
 
-payment-tilt-up:
-    tilt up payment-service api-gateway
+k3d-up:
+    bash ./scripts/k3d-up.sh
 
-payment-tilt-down:
-    tilt down
+k3s-up:
+    bash ./scripts/k3d-up.sh
+
+k3d-build-images:
+    bash ./scripts/k3d-build-images.sh
+
+k3s-build-images:
+    bash ./scripts/k3d-build-images.sh
+
+k3d-build-up:
+    bash ./scripts/k3d-build-images.sh && bash ./scripts/k3d-import-images.sh && bash ./scripts/k3d-up.sh
+
+k3s-build-up:
+    bash ./scripts/k3s-build-images.sh && bash ./scripts/k3s-import-images.sh && bash ./scripts/k3s-up.sh
+
+k3d-import-images:
+    bash ./scripts/k3d-import-images.sh
+
+k3s-import-images:
+    bash ./scripts/k3d-import-images.sh
+
+k3d-down:
+    bash ./scripts/k3d-down.sh
+
+k3s-down:
+    bash ./scripts/k3d-down.sh
+
+open-k3s-ports:
+    bash ./scripts/open-k3s-ports.sh
 
 asyncapi-docs-validate:
     {{asyncapi_compose}} run --rm asyncapi-validate
@@ -120,12 +179,6 @@ swagger-api-gateway-serve:
 swagger-api-gateway-down:
     {{swagger_compose}} down
 
-tilt-up:
-    tilt up
-
-tilt-down:
-    tilt down
-
 sonarqube-up:
     {{sonarqube_compose}} up -d
 
@@ -133,6 +186,7 @@ sonarqube-down:
     {{sonarqube_compose}} down
 
 sonarqube-volumes-delete:
+    test "$CONFIRM_DELETE_OFM_VOLUMES" = "yes"
     docker volume rm \
         ofm-infra_sonarqube_postgres_data \
         ofm-infra_sonarqube_data \
@@ -144,18 +198,6 @@ sonarqube-logs:
 
 sonarqube-ps:
     {{sonarqube_compose}} ps
-
-observability-up:
-    {{observability_compose}} up -d --remove-orphans
-
-observability-down:
-    docker compose -p ofm-observability -f docker-compose.observability.yaml down --remove-orphans
-
-observability-logs:
-    {{observability_compose}} logs -f
-
-observability-ps:
-    {{observability_compose}} ps
 
 sonarqube-scan repo_dir project_key project_name:
     zsh ./scripts/sonarqube-scan.sh {{repo_dir}} {{project_key}} "{{project_name}}"

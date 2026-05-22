@@ -11,7 +11,7 @@ if [[ ! -f "${auth_env_file}" ]]; then
 fi
 
 secret="$(
-  grep -E '^JWT_SECRET=' "${auth_env_file}" | head -n1 | cut -d= -f2-
+  grep -E '^JWT_ACCESS_SECRET=' "${auth_env_file}" | head -n1 | cut -d= -f2-
 )"
 
 issuer="$(
@@ -19,7 +19,7 @@ issuer="$(
 )"
 
 if [[ -z "${secret}" ]]; then
-  echo "JWT_SECRET is missing in ${auth_env_file}" >&2
+  echo "JWT_ACCESS_SECRET is missing in ${auth_env_file}" >&2
   exit 1
 fi
 

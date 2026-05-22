@@ -1,0 +1,86 @@
+{{- if .Values.global.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ofm-allow-host-infra-egress
+  namespace: {{ .Values.global.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/name: ofm
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.42.0.0/16
+    - to:
+        - ipBlock:
+            cidr: 10.43.0.0/16
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8086
+        - protocol: TCP
+          port: 8090
+    - to:
+        - ipBlock:
+            cidr: {{ .Values.global.externalHost }}/32
+      ports:
+        - protocol: TCP
+          port: 4222
+        - protocol: TCP
+          port: 8222
+        - protocol: TCP
+          port: 5433
+        - protocol: TCP
+          port: 5434
+        - protocol: TCP
+          port: 5435
+        - protocol: TCP
+          port: 5436
+        - protocol: TCP
+          port: 5437
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 6380
+        - protocol: TCP
+          port: 6381
+        - protocol: TCP
+          port: 9042
+        - protocol: TCP
+          port: 9043
+        - protocol: TCP
+          port: 9044
+        - protocol: TCP
+          port: 9000
+        - protocol: TCP
+          port: 9001
+        - protocol: TCP
+          port: 9002
+        - protocol: TCP
+          port: 9003
+        - protocol: TCP
+          port: 9004
+        - protocol: TCP
+          port: 9005
+        - protocol: TCP
+          port: 9006
+        - protocol: TCP
+          port: 15433
+        - protocol: TCP
+          port: 15434
+        - protocol: TCP
+          port: 15435
+        - protocol: TCP
+          port: 15436
+        - protocol: TCP
+          port: 15437
+{{- end }}

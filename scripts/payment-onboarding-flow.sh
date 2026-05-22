@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-api_gateway_url="${API_GATEWAY_URL:-http://127.0.0.1:8080}"
+api_gateway_url="${API_GATEWAY_URL:-http://api.ofm.local}"
 jwt_token="${JWT_TOKEN:-}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "${script_dir}/api-gateway-curl.sh"
+ofm_api_gateway_configure "$api_gateway_url" || true
+trap ofm_api_gateway_cleanup EXIT
 
 if [[ -z "${jwt_token}" ]]; then
   jwt_token="$(bash ./scripts/payment-onboarding-token.sh)"
@@ -11,6 +15,7 @@ fi
 response_file="$(mktemp)"
 http_code="$(
   curl -sS \
+    "${OFM_API_GATEWAY_CURL_ARGS[@]}" \
     -o "${response_file}" \
     -w '%{http_code}' \
     -X POST \

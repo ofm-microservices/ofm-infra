@@ -1,4 +1,5 @@
 .env
+helm/ofm/local-secrets.yaml
 
 # Go build outputs
 bin/

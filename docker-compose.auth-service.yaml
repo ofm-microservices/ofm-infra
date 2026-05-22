@@ -1,11 +1,14 @@
+name: ofm-infra
+
 services:
   auth-service-yugabyte:
     image: yugabytedb/yugabyte:2025.2.2.2-b11
     container_name: ofm-auth-service-yugabyte
+    hostname: auth-service-yugabyte
     restart: unless-stopped
     mem_limit: 2g
     cpus: "2.00"
-    command: ["bin/yugabyted", "start", "--daemon=false"]
+    command: ["bin/yugabyted", "start", "--base_dir=/home/yugabyte/var", "--advertise_address=auth-service-yugabyte", "--daemon=false"]
     ports:
       - "5434:5433"
       - "7001:7000"
@@ -13,10 +16,13 @@ services:
       - "15434:15433"
     volumes:
       - auth_service_yugabyte_data:/home/yugabyte/var
+      - auth_service_yugabyte_disk0:/mnt/disk0
+      - auth_service_yugabyte_disk1:/mnt/disk1
 
   auth-service-yugabyte-init:
     image: yugabytedb/yugabyte:2025.2.2.2-b11
     container_name: ofm-auth-service-yugabyte-init
+    hostname: auth-service-yugabyte-init
     depends_on:
       - auth-service-yugabyte
     restart: "no"
@@ -28,3 +34,8 @@ services:
 
 volumes:
   auth_service_yugabyte_data:
+    name: infra_auth_service_yugabyte_data
+  auth_service_yugabyte_disk0:
+    name: infra_auth_service_yugabyte_disk0
+  auth_service_yugabyte_disk1:
+    name: infra_auth_service_yugabyte_disk1

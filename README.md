@@ -64,73 +64,59 @@ Bring up only the payment stack infrastructure:
 just payment-infra-up
 ```
 
-Run only the payment-oriented Tilt resources:
+## K3s + Helm + Linkerd
 
-```bash
-just payment-tilt-up
-```
+The k3s path runs the app stack as Helm-managed Kubernetes workloads with Linkerd sidecars.
 
-## Tilt
+### What it uses
 
-Tilt is the preferred interactive runner for the Go applications only.
+- `k3s` for the local cluster
+- `Helm` for the app release
+- `Linkerd` for mTLS and traffic policy
+- Kubernetes `Service` DNS for discovery between services
 
-The runtime split is intentional:
-
-- Docker Compose runs third-party infrastructure containers outside Tilt
-- Tilt runs only your Go services as local processes with `go run`
-
-That keeps application iteration fast while leaving NATS, YugabyteDB, Redis, and ScyllaDB in containers.
-Realtime service is Tilt-only as well and is not started by the Compose stack.
-
-For the lightweight payment workflow, use `just payment-infra-up` instead of `just infra-up`.
-
-The Tilt entrypoint is [Tiltfile](/home/alex/projects/ofm-microservices/ofm-infra/Tiltfile).
-
-Start Tilt with:
+### How to run
 
 ```bash
 cd ofm-infra
-just tilt-up
+just k3s-up
 ```
 
-Or directly:
+This builds/imports the app images into k3s, labels the app namespace for Linkerd injection, and installs the umbrella Helm release.
+
+Stop the release with:
 
 ```bash
 cd ofm-infra
-tilt up
+just k3s-down
 ```
 
-Stop Tilt with:
+### Service discovery model
 
-```bash
-cd ofm-infra
-just tilt-down
-```
+In Kubernetes, services talk to each other through stable service DNS names instead of localhost or pod IPs.
 
-### Tilt resource layout
+Examples:
 
-Tilt exposes only local Go application resources:
+- `auth-service.ofm.svc.cluster.local:9501`
+- `user-service.ofm.svc.cluster.local:9502`
+- `gig-service.ofm.svc.cluster.local:9503`
+- `file-service.ofm.svc.cluster.local:9504`
+- `order-service.ofm.svc.cluster.local:9505`
+- `payment-service.ofm.svc.cluster.local:9506`
+- `registration-saga-service.ofm.svc.cluster.local:9500`
+- `order-saga-service.ofm.svc.cluster.local:9507`
 
-- `registration-saga-service`
-- `auth-service`
-- `user-service`
-- `mail-service`
-- `api-gateway`
-- `payment-service`
-- `realtime-service`
+The Helm chart injects these addresses into pod env so scaling replicas later does not change the callers.
 
-Resources are labeled for filtering:
+### Linkerd note
 
-- `app`
-  Long-running Go services started by Tilt
-- service-specific labels such as `api-gateway`, `auth-service`, `user-service`, `registration-saga-service`
+The chart labels the app namespace with `linkerd.io/inject=enabled`. Make sure the Linkerd control plane is already installed in the cluster before running `just k3s-up`.
 
 ## Tooling
 
 This repo currently uses:
 
 - `Docker Compose`
-- `Tilt`
 - `Just`
 - `AsyncAPI CLI`
 - `pkgsite`
@@ -141,9 +127,7 @@ This repo currently uses:
 ## Notes
 
 - Compose remains the source of truth for third-party infra containers and must be started separately.
-- Tilt owns only the Go application process lifecycle.
 - Service environment variables remain in the service-local `.env` files.
-- Tilt overrides Docker-network connection targets to host values such as `127.0.0.1` and published ports when running `go run` locally.
 
 ## Swagger
 

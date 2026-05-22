@@ -1,3 +1,5 @@
+name: ofm-infra
+
 services:
   nats:
     image: nats:2.12.4-alpine

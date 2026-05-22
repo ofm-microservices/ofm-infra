@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-API_BASE_URL="${GIG_API_BASE_URL:-http://127.0.0.1:8080/v1}"
+API_BASE_URL="${GIG_API_BASE_URL:-http://api.ofm.local/v1}"
 NATS_MONITOR_URL="${GIG_NATS_MONITOR_URL:-http://127.0.0.1:8222/jsz?streams=1}"
 LOG_FILE="${GIG_LOG_FILE:-gig-log.txt}"
 GIG_STREAM_NAME="${GIG_STREAM_NAME:-GIG_EVENTS}"
+GIG_CONNECTED="${GIG_CONNECTED:-true}"
+GIG_CONNECTED_FREELANCER_ID="${GIG_CONNECTED_FREELANCER_ID:-aeac656a-e617-45f2-b1ce-b922d8bd03fa}"
 
 timestamp="$(date +%s)"
-freelancer_id="${GIG_FREELANCER_ID:-freelancer-${timestamp}}"
+freelancer_id="${GIG_FREELANCER_ID:-$GIG_CONNECTED_FREELANCER_ID}"
 title="${GIG_TITLE:-Gig title ${timestamp}}"
 description="${GIG_DESCRIPTION:-A gig created by the gig-flow script}"
 category_id="${GIG_CATEGORY_ID:-1001}"
 currency="${GIG_CURRENCY:-usd}"
-jwt_secret="${GIG_JWT_SECRET:-local-dev-secret-change-me}"
+jwt_secret="${GIG_JWT_SECRET:-${JWT_ACCESS_SECRET:-local-dev-secret-change-me}}"
 jwt_ttl_seconds="${GIG_JWT_TTL_SECONDS:-3600}"
 basic_description="${GIG_BASIC_DESCRIPTION:-Basic package for the gig}"
 basic_delivery_days="${GIG_BASIC_DELIVERY_DAYS:-3}"
@@ -29,6 +31,47 @@ question_2="${GIG_QUESTION_2:-Do you have a reference or brand guide?}"
 
 cover_image_path="${GIG_COVER_IMAGE_PATH:-/home/alex/Downloads/ainz.jpg}"
 gallery_image_path="${GIG_GALLERY_IMAGE_PATH:-/home/alex/Downloads/yagami.jpg}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "${script_dir}/api-gateway-curl.sh"
+ofm_api_gateway_configure "$API_BASE_URL" || true
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --connected)
+      GIG_CONNECTED="${2:-}"
+      shift 2
+      ;;
+    --connected=*)
+      GIG_CONNECTED="${1#*=}"
+      shift
+      ;;
+    --freelancer-id)
+      freelancer_id="${2:-}"
+      shift 2
+      ;;
+    --freelancer-id=*)
+      freelancer_id="${1#*=}"
+      shift
+      ;;
+    *)
+      echo "unknown argument: $1" >&2
+      exit 1
+      ;;
+  esac
+done
+
+case "${GIG_CONNECTED,,}" in
+  true)
+    freelancer_id="${freelancer_id:-$GIG_CONNECTED_FREELANCER_ID}"
+    ;;
+  false)
+    freelancer_id="${freelancer_id:-freelancer-${timestamp}}"
+    ;;
+  *)
+    echo "GIG_CONNECTED must be true or false" >&2
+    exit 1
+    ;;
+esac
 
 base64url_encode() {
   openssl base64 -A | tr '+/' '-_' | tr -d '='
@@ -115,6 +158,7 @@ request_json() {
   if [[ -n "$payload" ]]; then
     status="$(
       curl -sS \
+        "${OFM_API_GATEWAY_CURL_ARGS[@]}" \
         -X "$method" \
         -H 'Content-Type: application/json' \
         -H "$auth_header" \
@@ -126,6 +170,7 @@ request_json() {
   else
     status="$(
       curl -sS \
+        "${OFM_API_GATEWAY_CURL_ARGS[@]}" \
         -X "$method" \
         -H "$auth_header" \
         -o "$body_file" \
@@ -180,7 +225,7 @@ questions_body="$(mktemp)"
 media_body="$(mktemp)"
 publish_body="$(mktemp)"
 get_body="$(mktemp)"
-trap 'rm -f "$draft_body" "$basic_body" "$packages_body" "$questions_body" "$media_body" "$publish_body" "$get_body"' EXIT
+trap 'rm -f "$draft_body" "$basic_body" "$packages_body" "$questions_body" "$media_body" "$publish_body" "$get_body"; ofm_api_gateway_cleanup' EXIT
 
 log "----- OFM gig flow $(date -Is) -----"
 log "Log file: $LOG_FILE"
@@ -188,6 +233,7 @@ log "API base URL: $API_BASE_URL"
 log "NATS monitoring URL: $NATS_MONITOR_URL"
 log_blank
 log "Freelancer ID: $freelancer_id"
+log "Connected: ${GIG_CONNECTED,,}"
 log "Title: $title"
 log "Description: $description"
 log "Category ID: $category_id"
@@ -209,7 +255,7 @@ if [[ ! -f "$gallery_image_path" ]]; then
   exit 1
 fi
 
-api_status="$(curl -sS --connect-timeout 2 -o /dev/null -w '%{http_code}' "$API_BASE_URL" || true)"
+api_status="$(curl -sS "${OFM_API_GATEWAY_CURL_ARGS[@]}" --connect-timeout 2 -o /dev/null -w '%{http_code}' "$API_BASE_URL" || true)"
 if [[ "$api_status" == "000" ]]; then
   log "api-gateway is not reachable at $API_BASE_URL"
   exit 1
@@ -344,6 +390,7 @@ log "PUT $API_BASE_URL/gigs/$gig_id/media"
 log "multipart form fields: files=@$cover_image_path, files=@$gallery_image_path"
 media_status="$(
   curl -sS \
+    "${OFM_API_GATEWAY_CURL_ARGS[@]}" \
     -X PUT \
     -H "$auth_header" \
     -F "files=@${cover_image_path}" \

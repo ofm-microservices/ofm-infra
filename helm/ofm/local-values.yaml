@@ -1,0 +1,47 @@
+global:
+  namespace: ofm
+  clusterDomain: cluster.local
+  externalHost: 172.21.0.1
+  natsHost: host.k3d.internal
+  vector:
+    enabled: true
+    configRevision: "7"
+    clickhouseEndpoint: http://clickhouse:8123
+  observability:
+    enabled: true
+  hostDbBridge:
+    enabled: false
+  networkPolicy:
+    enabled: false
+
+_secrets:
+  payment: {}
+  mail: {}
+
+services:
+  api-gateway:
+    enabled: true
+  auth-service:
+    enabled: true
+  user-service:
+    enabled: true
+  registration-saga-service:
+    enabled: true
+  gig-service:
+    enabled: true
+  file-service:
+    enabled: true
+  payment-service:
+    enabled: true
+    ingress:
+      enabled: true
+      host: payment.ofm.local
+      path: /
+  order-service:
+    enabled: true
+  order-saga-service:
+    enabled: true
+  realtime-service:
+    enabled: true
+  mail-service:
+    enabled: true

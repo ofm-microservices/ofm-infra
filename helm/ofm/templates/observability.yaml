@@ -1,0 +1,588 @@
+{{- if .Values.global.observability.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ofm-prometheus-config
+  namespace: {{ .Values.global.namespace }}
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    scrape_configs:
+      - job_name: prometheus
+        static_configs:
+          - targets: ["prometheus:9090"]
+      - job_name: tempo
+        static_configs:
+          - targets: ["tempo:3200"]
+      - job_name: otel-collector
+        static_configs:
+          - targets: ["otel-collector:8888"]
+      - job_name: api-gateway
+        static_configs:
+          - targets: ["api-gateway:9606"]
+      - job_name: auth-service
+        static_configs:
+          - targets: ["auth-service:9601"]
+      - job_name: user-service
+        static_configs:
+          - targets: ["user-service:9602"]
+      - job_name: registration-saga-service
+        static_configs:
+          - targets: ["registration-saga-service:9600"]
+      - job_name: gig-service
+        static_configs:
+          - targets: ["gig-service:9603"]
+      - job_name: file-service
+        static_configs:
+          - targets: ["file-service:9604"]
+      - job_name: payment-service
+        static_configs:
+          - targets: ["payment-service:9609"]
+      - job_name: order-service
+        static_configs:
+          - targets: ["order-service:9608"]
+      - job_name: order-saga-service
+        static_configs:
+          - targets: ["order-saga-service:9607"]
+      - job_name: realtime-service
+        static_configs:
+          - targets: ["realtime-service:9610"]
+      - job_name: mail-service
+        static_configs:
+          - targets: ["mail-service:9605"]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ofm-tempo-config
+  namespace: {{ .Values.global.namespace }}
+data:
+  tempo.yaml: |
+    server:
+      http_listen_port: 3200
+
+    distributor:
+      receivers:
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:4317
+            http:
+              endpoint: 0.0.0.0:4318
+
+    ingester:
+      trace_idle_period: 10s
+      max_block_duration: 5m
+
+    compactor:
+      compaction:
+        block_retention: 1h
+
+    storage:
+      trace:
+        backend: local
+        local:
+          path: /var/tempo/traces
+        wal:
+          path: /var/tempo/wal
+
+    metrics_generator:
+      registry:
+        collection_interval: 15s
+      processor:
+        local_blocks:
+          filter_server_spans: false
+      traces_storage:
+        path: /var/tempo/generator/traces
+      storage:
+        path: /var/tempo/generator/wal
+        remote_write:
+          - url: http://prometheus:9090/api/v1/write
+        remote_write_add_org_id_header: false
+        remote_write_flush_deadline: 30s
+
+    overrides:
+      defaults:
+        metrics_generator:
+          processors: [service-graphs, span-metrics, local-blocks]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ofm-otel-collector-config
+  namespace: {{ .Values.global.namespace }}
+data:
+  otel-collector.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      batch:
+        timeout: 1s
+        send_batch_size: 512
+
+    exporters:
+      otlp/tempo:
+        endpoint: tempo:4317
+        tls:
+          insecure: true
+
+    service:
+      telemetry:
+        logs:
+          level: info
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlp/tempo]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ofm-clickhouse-config
+  namespace: {{ .Values.global.namespace }}
+data:
+  users.xml: |
+{{ .Files.Get "files/clickhouse/users.xml" | indent 4 }}
+  init.sql: |
+{{ .Files.Get "files/clickhouse/init.sql" | indent 4 }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: clickhouse-data
+  namespace: {{ .Values.global.namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clickhouse
+  namespace: {{ .Values.global.namespace }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: clickhouse
+      {{- include "ofm.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: clickhouse
+        {{- include "ofm.labels" . | nindent 8 }}
+      annotations:
+        linkerd.io/inject: disabled
+    spec:
+      containers:
+        - name: clickhouse
+          image: {{ .Values.global.observability.clickhouse.image }}
+          ports:
+            - name: http
+              containerPort: 8123
+            - name: native
+              containerPort: 9000
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/clickhouse
+            - name: config
+              mountPath: /etc/clickhouse-server/users.d/ofm.xml
+              subPath: users.xml
+              readOnly: true
+            - name: config
+              mountPath: /docker-entrypoint-initdb.d/init.sql
+              subPath: init.sql
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: clickhouse-data
+        - name: config
+          configMap:
+            name: ofm-clickhouse-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: clickhouse
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app.kubernetes.io/component: clickhouse
+    {{- include "ofm.labels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: 8123
+      targetPort: 8123
+    - name: native
+      port: 9000
+      targetPort: 9000
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ofm-grafana-datasources
+  namespace: {{ .Values.global.namespace }}
+data:
+  datasources.yml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        uid: prometheus
+        access: proxy
+        orgId: 1
+        url: http://prometheus:9090
+        isDefault: true
+      - name: ClickHouse
+        type: grafana-clickhouse-datasource
+        uid: clickhouse
+        access: proxy
+        orgId: 1
+        url: clickhouse:9000
+        user: admin
+        secureJsonData:
+          password: admin
+        jsonData:
+          host: clickhouse
+          server: clickhouse
+          username: admin
+          port: 9000
+          protocol: native
+          secure: false
+          defaultDatabase: default
+      - name: Tempo
+        type: tempo
+        uid: tempo
+        access: proxy
+        orgId: 1
+        url: http://tempo:3200
+        jsonData:
+          streamingEnabled:
+            search: false
+            metrics: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ofm-grafana-dashboard-provider
+  namespace: {{ .Values.global.namespace }}
+data:
+  dashboards.yml: |
+    apiVersion: 1
+    providers:
+      - name: ofm
+        orgId: 1
+        folder: OFM
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ofm-grafana-dashboards
+  namespace: {{ .Values.global.namespace }}
+data:
+  ofm-logs-overview.json: |
+{{ .Files.Get "files/grafana-dashboards/ofm-logs-overview.json" | indent 4 }}
+  ofm-metrics-overview.json: |
+{{ .Files.Get "files/grafana-dashboards/ofm-metrics-overview.json" | indent 4 }}
+  ofm-traces-overview.json: |
+{{ .Files.Get "files/grafana-dashboards/ofm-traces-overview.json" | indent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: {{ .Values.global.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: prometheus
+      {{- include "ofm.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: prometheus
+        {{- include "ofm.labels" . | nindent 8 }}
+      annotations:
+        linkerd.io/inject: disabled
+    spec:
+      containers:
+        - name: prometheus
+          image: {{ .Values.global.observability.prometheus.image }}
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+            - --web.enable-remote-write-receiver
+          ports:
+            - name: http
+              containerPort: 9090
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus/prometheus.yml
+              subPath: prometheus.yml
+              readOnly: true
+            - name: data
+              mountPath: /prometheus
+      volumes:
+        - name: config
+          configMap:
+            name: ofm-prometheus-config
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app.kubernetes.io/component: prometheus
+    {{- include "ofm.labels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: 9090
+      targetPort: 9090
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tempo
+  namespace: {{ .Values.global.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: tempo
+      {{- include "ofm.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: tempo
+        {{- include "ofm.labels" . | nindent 8 }}
+      annotations:
+        linkerd.io/inject: disabled
+    spec:
+      containers:
+        - name: tempo
+          image: {{ .Values.global.observability.tempo.image }}
+          args:
+            - -config.file=/etc/tempo.yaml
+          ports:
+            - name: http
+              containerPort: 3200
+            - name: otlp-grpc
+              containerPort: 4317
+            - name: otlp-http
+              containerPort: 4318
+          volumeMounts:
+            - name: config
+              mountPath: /etc/tempo.yaml
+              subPath: tempo.yaml
+              readOnly: true
+            - name: data
+              mountPath: /var/tempo
+      volumes:
+        - name: config
+          configMap:
+            name: ofm-tempo-config
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tempo
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app.kubernetes.io/component: tempo
+    {{- include "ofm.labels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: 3200
+      targetPort: 3200
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: {{ .Values.global.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: otel-collector
+      {{- include "ofm.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: otel-collector
+        {{- include "ofm.labels" . | nindent 8 }}
+      annotations:
+        linkerd.io/inject: disabled
+    spec:
+      containers:
+        - name: otel-collector
+          image: {{ .Values.global.observability.otelCollector.image }}
+          args:
+            - --config=/etc/otel-collector.yaml
+          ports:
+            - name: otlp-grpc
+              containerPort: 4317
+            - name: otlp-http
+              containerPort: 4318
+            - name: metrics
+              containerPort: 8888
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otel-collector.yaml
+              subPath: otel-collector.yaml
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: ofm-otel-collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app.kubernetes.io/component: otel-collector
+    {{- include "ofm.labels" . | nindent 4 }}
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+    - name: metrics
+      port: 8888
+      targetPort: 8888
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: {{ .Values.global.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: grafana
+      {{- include "ofm.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: grafana
+        {{- include "ofm.labels" . | nindent 8 }}
+      annotations:
+        linkerd.io/inject: disabled
+    spec:
+      containers:
+        - name: grafana
+          image: {{ .Values.global.observability.grafana.image }}
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: admin
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: admin
+            - name: GF_INSTALL_PLUGINS
+              value: {{ .Values.global.observability.grafana.plugins }}
+            - name: GF_PATHS_PROVISIONING
+              value: /etc/grafana/provisioning
+          ports:
+            - name: http
+              containerPort: 3000
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/grafana
+            - name: datasource
+              mountPath: /etc/grafana/provisioning/datasources/datasources.yml
+              subPath: datasources.yml
+              readOnly: true
+            - name: dashboards-provider
+              mountPath: /etc/grafana/provisioning/dashboards/dashboards.yml
+              subPath: dashboards.yml
+              readOnly: true
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+              readOnly: true
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: datasource
+          configMap:
+            name: ofm-grafana-datasources
+        - name: dashboards-provider
+          configMap:
+            name: ofm-grafana-dashboard-provider
+        - name: dashboards
+          configMap:
+            name: ofm-grafana-dashboards
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app.kubernetes.io/component: grafana
+    {{- include "ofm.labels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+    - host: grafana.ofm.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000
+{{- end }}

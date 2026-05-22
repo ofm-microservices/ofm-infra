@@ -1,20 +1,6 @@
-services:
-  vector:
-    image: timberio/vector:0.47.0-alpine
-    container_name: ofm-vector
-    restart: unless-stopped
-    user: root
-    mem_limit: 512m
-    cpus: "0.50"
-    command:
-      - "-c"
-      - "/etc/vector/vector.toml"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./observability/vector/vector.toml:/etc/vector/vector.toml:ro
-    depends_on:
-      - clickhouse
+name: ofm-infra
 
+services:
   prometheus:
     image: prom/prometheus:v3.7.3
     container_name: ofm-prometheus
@@ -43,14 +29,28 @@ services:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
     ports:
       - "3000:3000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - grafana_state:/var/lib/grafana
-      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+  grafana-bootstrap:
+    image: curlimages/curl:8.12.1
+    container_name: ofm-grafana-bootstrap
+    restart: "no"
+    depends_on:
+      - grafana
+      - prometheus
+      - clickhouse
+      - tempo
+    volumes:
+      - ./scripts/grafana-bootstrap.sh:/bootstrap.sh:ro
+    entrypoint: ["/bin/sh", "/bootstrap.sh"]
 
   clickhouse:
     image: clickhouse/clickhouse-server:25.8
@@ -98,6 +98,12 @@ services:
 
 volumes:
   prometheus_data:
-  grafana_state:
+    name: ofm-infra_prometheus_data
+  grafana_data:
+    name: ofm-infra_grafana_data
   clickhouse_data:
+    name: ofm-observability_clickhouse_data
+    external: true
   tempo_data:
+    name: ofm-observability_tempo_data
+    external: true

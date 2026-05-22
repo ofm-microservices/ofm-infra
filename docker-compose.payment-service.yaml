@@ -1,3 +1,5 @@
+name: ofm-infra
+
 services:
   payment-service-redis:
     image: redis:8-alpine
@@ -13,10 +15,11 @@ services:
   payment-service-yugabyte:
     image: yugabytedb/yugabyte:2025.2.2.2-b11
     container_name: ofm-payment-service-yugabyte
+    hostname: payment-service-yugabyte
     restart: unless-stopped
     mem_limit: 2g
     cpus: "2.00"
-    command: ["bin/yugabyted", "start", "--daemon=false"]
+    command: ["bin/yugabyted", "start", "--base_dir=/home/yugabyte/var", "--advertise_address=payment-service-yugabyte", "--daemon=false"]
     ports:
       - "5436:5433"
       - "7003:7000"
@@ -24,10 +27,13 @@ services:
       - "15436:15433"
     volumes:
       - payment_service_yugabyte_data:/home/yugabyte/var
+      - payment_service_yugabyte_disk0:/mnt/disk0
+      - payment_service_yugabyte_disk1:/mnt/disk1
 
   payment-service-yugabyte-init:
     image: yugabytedb/yugabyte:2025.2.2.2-b11
     container_name: ofm-payment-service-yugabyte-init
+    hostname: payment-service-yugabyte-init
     depends_on:
       - payment-service-yugabyte
     restart: "no"
@@ -40,3 +46,5 @@ services:
 volumes:
   payment_service_redis_data:
   payment_service_yugabyte_data:
+  payment_service_yugabyte_disk0:
+  payment_service_yugabyte_disk1:

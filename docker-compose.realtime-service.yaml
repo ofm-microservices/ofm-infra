@@ -11,7 +11,7 @@ services:
       APP_NAME: realtime-service
       APP_ENV: local
       HTTP_PORT: "8082"
-      JWT_ACCESS_SECRET: local-dev-secret-change-me
+      JWT_ACCESS_SECRET: aa96fae1a6eee39b879dad6b6bb372e63278257bf9f94010bc7d25693f61e38c
       NATS_URL: nats://ofm-nats:4222
     ports:
       - "8082:8082"

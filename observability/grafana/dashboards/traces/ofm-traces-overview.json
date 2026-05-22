@@ -19,7 +19,7 @@
         "type": "query",
         "datasource": {
           "type": "prometheus",
-          "uid": "prometheus"
+          "uid": "PBFA97CFB590B2093"
         },
         "query": "label_values(traces_spanmetrics_calls_total, service)",
         "refresh": 1,
@@ -37,7 +37,7 @@
         "type": "query",
         "datasource": {
           "type": "prometheus",
-          "uid": "prometheus"
+          "uid": "PBFA97CFB590B2093"
         },
         "query": "label_values(traces_spanmetrics_calls_total{service=~\"$service\"}, span_name)",
         "refresh": 1,
@@ -55,7 +55,7 @@
         "type": "query",
         "datasource": {
           "type": "prometheus",
-          "uid": "prometheus"
+          "uid": "PBFA97CFB590B2093"
         },
         "query": "label_values(traces_spanmetrics_calls_total, span_kind)",
         "refresh": 1,
@@ -73,7 +73,7 @@
         "type": "query",
         "datasource": {
           "type": "prometheus",
-          "uid": "prometheus"
+          "uid": "PBFA97CFB590B2093"
         },
         "query": "label_values(traces_spanmetrics_calls_total, status_code)",
         "refresh": 1,
@@ -111,7 +111,7 @@
       "type": "stat",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       },
       "gridPos": {
         "h": 4,
@@ -162,7 +162,7 @@
       "type": "stat",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       },
       "gridPos": {
         "h": 4,
@@ -200,7 +200,7 @@
       "type": "stat",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       },
       "gridPos": {
         "h": 4,
@@ -238,7 +238,7 @@
       "type": "stat",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       },
       "gridPos": {
         "h": 4,
@@ -293,7 +293,7 @@
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       },
       "gridPos": {
         "h": 8,
@@ -342,7 +342,7 @@
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       },
       "gridPos": {
         "h": 8,
@@ -391,7 +391,7 @@
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       },
       "gridPos": {
         "h": 8,
@@ -444,7 +444,7 @@
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       },
       "gridPos": {
         "h": 8,

@@ -1,3 +1,5 @@
+name: ofm-infra
+
 services:
   file-service-scylla:
     image: scylladb/scylla:2025.4

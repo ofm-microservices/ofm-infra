@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ofm
+description: Umbrella Helm chart for the OFM application stack
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
