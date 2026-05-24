@@ -55,6 +55,9 @@ gig-flow *args:
 order-flow *args:
     bash ./scripts/order-flow.sh {{args}}
 
+order-complete-flow *args:
+    bash ./scripts/order-complete-flow.sh {{args}}
+
 order-infra-up:
     bash ./scripts/order-infra-up.sh
 
@@ -229,11 +232,17 @@ sonarqube-scan-file-service:
 sonarqube-scan-gig-service:
     just sonarqube-scan ofm-gig-service ofm-gig-service "OFM Gig Service"
 
+sonarqube-scan-order-service:
+    just sonarqube-scan ofm-order-service ofm-order-service "OFM Order Service"
+
 sonarqube-scan-mail-service:
     just sonarqube-scan ofm-mail-service ofm-mail-service "OFM Mail Service"
 
 sonarqube-scan-registration-saga-service:
     just sonarqube-scan ofm-registration-saga-service ofm-registration-saga-service "OFM Registration Saga Service"
+
+sonarqube-scan-order-saga-service:
+    just sonarqube-scan ofm-order-saga-service ofm-order-saga-service "OFM Order Saga Service"
 
 sonarqube-scan-all:
     just sonarqube-scan-common
@@ -242,8 +251,10 @@ sonarqube-scan-all:
     just sonarqube-scan-user-service
     just sonarqube-scan-file-service
     just sonarqube-scan-gig-service
+    just sonarqube-scan-order-service
     just sonarqube-scan-mail-service
     just sonarqube-scan-registration-saga-service
+    just sonarqube-scan-order-saga-service
 
 sonarqube-coverage-analysis-common:
     just sonarqube-coverage-analysis ofm-common ofm-common
@@ -263,6 +274,9 @@ sonarqube-coverage-analysis-file-service:
 sonarqube-coverage-analysis-gig-service:
     just sonarqube-coverage-analysis ofm-gig-service ofm-gig-service
 
+sonarqube-coverage-analysis-order-service:
+    just sonarqube-coverage-analysis ofm-order-service ofm-order-service
+
 sonarqube-coverage-analysis-user-service-all:
     just sonarqube-coverage-analysis-all ofm-user-service ofm-user-service
 
@@ -271,6 +285,12 @@ sonarqube-coverage-analysis-mail-service:
 
 sonarqube-coverage-analysis-registration-saga-service:
     just sonarqube-coverage-analysis-all ofm-registration-saga-service ofm-registration-saga-service
+
+sonarqube-coverage-analysis-order-saga-service:
+    just sonarqube-coverage-analysis-all ofm-order-saga-service ofm-order-saga-service
+
+sonarqube-coverage-analysis-order-saga-service-all:
+    just sonarqube-coverage-analysis-all ofm-order-saga-service ofm-order-saga-service
 
 sonarqube-coverage-analysis-registration-saga-service-all:
     just sonarqube-coverage-analysis-all ofm-registration-saga-service ofm-registration-saga-service

@@ -1,0 +1,40 @@
+----- OFM order complete flow 2026-05-24T18:29:21+03:00 -----
+Log file: order-complete-log.txt
+API base URL: http://api.ofm.local/v1
+
+Buyer ID: 019e474b-c686-752e-b02f-ff1eec695283
+Buyer email: 019e474b-c686-752e-b02f-ff1eec695283@example.com
+Order ID: 52301905-e957-41e4-8716-4096133e286e
+Idempotency key: order-1779636561
+
+== Realtime handshake ==
+Connecting to realtime service: ws://172.21.0.2/ws
+{"connection_id": "01KSD7Y4192AMCFYKZXFVC3XHN.01KSD9NT18TFH2VP4J504T828P", "type": "connection.ready"}
+Realtime connection ID: 01KSD7Y4192AMCFYKZXFVC3XHN.01KSD9NT18TFH2VP4J504T828P
+
+== Seller delivery ==
+POST http://api.ofm.local/v1/orders/52301905-e957-41e4-8716-4096133e286e/deliver
+{"delivery_message":"I finished the work. Please review the delivery.","attachment_ids":[]}
+HTTP 200
+{
+  "order_id": "52301905-e957-41e4-8716-4096133e286e",
+  "status": "delivered",
+  "current_step": "buyer_review_pending"
+}
+
+== Buyer accepts delivery ==
+POST http://api.ofm.local/v1/orders/52301905-e957-41e4-8716-4096133e286e/accept
+{}
+{"saga_id": "ee52edce-e19c-4451-8d6b-c4e37d22622e", "order_id": "52301905-e957-41e4-8716-4096133e286e", "user_id": "019e474b-c686-752e-b02f-ff1eec695283", "correlation_id": "ee52edce-e19c-4451-8d6b-c4e37d22622e", "dedupe_key": "ee52edce-e19c-4451-8d6b-c4e37d22622e:order.accept_delivery", "kind": "order_completed", "title": "Order completed", "message": "Your order has been completed.", "severity": "success", "order_status": "completed", "gig_title": "Gig title 1779635444", "package_tier": "basic", "package_description": "Basic package for the gig", "price_display": "usd 100.00"}
+HTTP 200
+{
+  "order_id": "52301905-e957-41e4-8716-4096133e286e",
+  "status": "completed",
+  "current_step": "completed"
+}
+Waiting for realtime completion event...
+Realtime event (completion): order_completed
+
+== Done ==
+Order complete flow finished successfully.
+Order ID: 52301905-e957-41e4-8716-4096133e286e

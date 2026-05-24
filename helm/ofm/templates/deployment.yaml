@@ -30,6 +30,10 @@ spec:
         {{- end }}
     spec:
       terminationGracePeriodSeconds: 15
+      hostAliases:
+        - ip: {{ include "ofm.externalHost" $ | quote }}
+          hostnames:
+            - host.k3d.internal
       tolerations:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
