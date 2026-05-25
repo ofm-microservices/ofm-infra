@@ -40,3 +40,4 @@ build_image "order-service" "ofm-order-service/Dockerfile" "ofm/order-service:${
 build_image "order-saga-service" "ofm-order-saga-service/Dockerfile" "ofm/order-saga-service:${image_tag}"
 build_image "realtime-service" "ofm-realtime-service/Dockerfile" "ofm/realtime-service:${image_tag}"
 build_image "mail-service" "ofm-mail-service/Dockerfile" "ofm/mail-service:${image_tag}"
+build_image "review-service" "ofm-review-service/Dockerfile" "ofm/review-service:${image_tag}"

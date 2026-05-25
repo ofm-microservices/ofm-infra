@@ -37,6 +37,8 @@ services:
       enabled: true
       host: payment.ofm.local
       path: /
+  review-service:
+    enabled: true
   order-service:
     enabled: true
   order-saga-service:

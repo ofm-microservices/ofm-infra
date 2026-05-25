@@ -19,6 +19,8 @@
   value: payment-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9506
 - name: ORDER_SAGA_ADDRESS
   value: order-saga-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9507
+- name: REVIEW_SERVICE_ADDRESS
+  value: review-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9510
 - name: HTTP_HOST
   value: 0.0.0.0
 - name: HTTP_PORT

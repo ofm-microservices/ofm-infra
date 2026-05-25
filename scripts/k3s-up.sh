@@ -8,7 +8,7 @@ release="${OFM_K3D_RELEASE:-ofm}"
 cluster="${OFM_K3D_CLUSTER:-ofm}"
 kubeconfig="${OFM_K3D_KUBECONFIG:-$HOME/.kube/k3d-ofm.yaml}"
 import_images="${OFM_K3D_IMPORT:-1}"
-services_to_manage=(user-service)
+services_to_manage=(user-service review-service)
 
 kubectl_cmd=(kubectl --kubeconfig "$kubeconfig")
 helm_cmd=(helm --kubeconfig "$kubeconfig")

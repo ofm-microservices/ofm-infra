@@ -1,0 +1,50 @@
+name: ofm-infra
+
+services:
+  review-service-redis:
+    image: redis:8-alpine
+    container_name: ofm-review-service-redis
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.50"
+    ports:
+      - "6383:6379"
+    volumes:
+      - review_service_redis_data:/data
+
+  review-service-yugabyte:
+    image: yugabytedb/yugabyte:2025.2.2.2-b11
+    container_name: ofm-review-service-yugabyte
+    hostname: review-service-yugabyte
+    restart: unless-stopped
+    mem_limit: 2g
+    cpus: "2.00"
+    command: ["bin/yugabyted", "start", "--base_dir=/home/yugabyte/var", "--advertise_address=review-service-yugabyte", "--daemon=false"]
+    ports:
+      - "5438:5433"
+      - "7005:7000"
+      - "9005:9000"
+      - "15438:15433"
+    volumes:
+      - review_service_yugabyte_data:/home/yugabyte/var
+      - review_service_yugabyte_disk0:/mnt/disk0
+      - review_service_yugabyte_disk1:/mnt/disk1
+
+  review-service-yugabyte-init:
+    image: yugabytedb/yugabyte:2025.2.2.2-b11
+    container_name: ofm-review-service-yugabyte-init
+    hostname: review-service-yugabyte-init
+    depends_on:
+      - review-service-yugabyte
+    restart: "no"
+    mem_limit: 256m
+    cpus: "0.25"
+    entrypoint: ["/bin/bash", "-lc", "bash /scripts/init-review-yugabyte.sh"]
+    volumes:
+      - ./scripts/init-review-yugabyte.sh:/scripts/init-review-yugabyte.sh:ro
+
+volumes:
+  review_service_redis_data:
+  review_service_yugabyte_data:
+  review_service_yugabyte_disk0:
+  review_service_yugabyte_disk1:

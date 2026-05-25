@@ -149,6 +149,20 @@ services:
       host: payment.ofm.local
       path: /
 
+  review-service:
+    enabled: true
+    image: ofm/review-service:k3s
+    replicaCount: 1
+    ports:
+      - name: grpc
+        containerPort: 9510
+        servicePort: 9510
+        protocol: TCP
+      - name: metrics
+        containerPort: 9611
+        servicePort: 9611
+        protocol: TCP
+
   order-service:
     enabled: true
     image: ofm/order-service:k3s
