@@ -1,7 +1,7 @@
 set shell := ["zsh", "-cu"]
 set dotenv-load := true
 
-compose := "docker compose -f docker-compose.nats.yaml -f docker-compose.user-service.yaml -f docker-compose.auth-service.yaml -f docker-compose.gig-service.yaml -f docker-compose.registration-saga-service.yaml -f docker-compose.order-saga-service.yaml -f docker-compose.order-service.yaml -f docker-compose.payment-service.yaml -f docker-compose.review-service.yaml -f docker-compose.file-service.yaml"
+compose := "docker compose -f docker-compose.nats.yaml -f docker-compose.user-service.yaml -f docker-compose.auth-service.yaml -f docker-compose.gig-service.yaml -f docker-compose.registration-saga-service.yaml -f docker-compose.order-saga-service.yaml -f docker-compose.order-service.yaml -f docker-compose.payment-service.yaml -f docker-compose.review-service.yaml -f docker-compose.search-service.yaml -f docker-compose.file-service.yaml"
 asyncapi_compose := "docker compose -f docker-compose.asyncapi.yaml"
 swagger_compose := "docker compose -f docker-compose.swagger.yaml"
 grpc_docs_compose := "docker compose -f docker-compose.grpc-docs.yaml"
@@ -112,14 +112,14 @@ k3d-up:
 k3s-up:
     bash ./scripts/k3d-up.sh
 
-k3d-build-images:
-    bash ./scripts/k3d-build-images.sh
+k3d-build-images service="all":
+    bash ./scripts/k3d-build-images.sh {{service}}
 
-k3s-build-images:
-    bash ./scripts/k3d-build-images.sh
+k3s-build-images service="all":
+    bash ./scripts/k3d-build-images.sh {{service}}
 
 k3d-build-up:
-    bash ./scripts/k3d-build-images.sh && bash ./scripts/k3d-import-images.sh && bash ./scripts/k3d-up.sh
+    bash ./scripts/k3d-build-images.sh && bash ./scripts/k3d-import-images.sh && OFM_K3D_IMPORT=0 bash ./scripts/k3d-up.sh
 
 k3s-build-up:
     bash ./scripts/k3s-build-images.sh && bash ./scripts/k3s-import-images.sh && bash ./scripts/k3s-up.sh

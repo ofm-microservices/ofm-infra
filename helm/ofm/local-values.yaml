@@ -47,3 +47,5 @@ services:
     enabled: true
   mail-service:
     enabled: true
+  search-service:
+    enabled: true

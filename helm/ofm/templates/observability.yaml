@@ -53,6 +53,9 @@ data:
       - job_name: mail-service
         static_configs:
           - targets: ["mail-service:9605"]
+      - job_name: search-service
+        static_configs:
+          - targets: ["search-service:9612"]
 ---
 apiVersion: v1
 kind: ConfigMap

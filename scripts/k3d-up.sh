@@ -7,7 +7,7 @@ namespace="${OFM_K3D_NAMESPACE:-ofm}"
 release="${OFM_K3D_RELEASE:-ofm}"
 cluster="${OFM_K3D_CLUSTER:-ofm}"
 kubeconfig="${OFM_K3D_KUBECONFIG:-$HOME/.kube/k3d-ofm.yaml}"
-import_images="${OFM_K3D_IMPORT:-1}"
+import_images="${OFM_K3D_IMPORT:-0}"
 run_linkerd_proxy_check="${OFM_K3D_LINKERD_PROXY_CHECK:-0}"
 services_to_manage=(
     api-gateway
@@ -19,6 +19,8 @@ services_to_manage=(
     payment-service
     order-service
     order-saga-service
+    review-service
+    search-service
     realtime-service
     mail-service
     prometheus
@@ -98,10 +100,6 @@ fi
 if [[ "$import_images" == "1" ]]; then
     bash "$repo_root/ofm-infra/scripts/k3d-import-images.sh"
 fi
-
-for svc in "${services_to_manage[@]}"; do
-    "${kubectl_cmd[@]}" -n "$namespace" delete deploy "$svc" --ignore-not-found --wait=false
-done
 
 "${helm_cmd[@]}" upgrade --install "$release" "$chart_dir" \
     --namespace "$namespace" \
