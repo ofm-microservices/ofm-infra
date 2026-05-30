@@ -30,6 +30,8 @@ services_to_manage=(
     grafana
 )
 
+source "$repo_root/ofm-infra/scripts/file-service-port-forward.sh"
+
 kubectl_cmd=(kubectl --kubeconfig "$kubeconfig")
 helm_cmd=(helm --kubeconfig "$kubeconfig")
 
@@ -111,6 +113,8 @@ fi
 for svc in "${services_to_manage[@]}"; do
     "${kubectl_cmd[@]}" -n "$namespace" rollout status "deploy/$svc" --timeout=600s
 done
+
+ofm_file_service_port_forward_start
 
 if [[ "$run_linkerd_proxy_check" == "1" ]] && command -v linkerd >/dev/null 2>&1; then
     linkerd --kubeconfig "$kubeconfig" check --proxy --namespace "$namespace"

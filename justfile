@@ -37,6 +37,12 @@ file-service-logs:
 file-service-ps:
     {{compose}} ps file-service-scylla file-service-rustfs
 
+file-service-port-forward:
+    source ./scripts/file-service-port-forward.sh && ofm_file_service_port_forward_start
+
+file-service-port-forward-stop:
+    source ./scripts/file-service-port-forward.sh && ofm_file_service_port_forward_cleanup
+
 infra-logs:
     {{compose}} logs -f
 
@@ -232,6 +238,9 @@ sonarqube-scan-user-service:
 sonarqube-scan-file-service:
     just sonarqube-scan ofm-file-service ofm-file-service "OFM File Service"
 
+sonarqube-scan-review-service:
+    just sonarqube-scan ofm-review-service ofm-review-service "OFM Review Service"
+
 sonarqube-scan-gig-service:
     just sonarqube-scan ofm-gig-service ofm-gig-service "OFM Gig Service"
 
@@ -253,6 +262,7 @@ sonarqube-scan-all:
     just sonarqube-scan-auth-service
     just sonarqube-scan-user-service
     just sonarqube-scan-file-service
+    just sonarqube-scan-review-service
     just sonarqube-scan-gig-service
     just sonarqube-scan-order-service
     just sonarqube-scan-mail-service
@@ -273,6 +283,9 @@ sonarqube-coverage-analysis-user-service:
 
 sonarqube-coverage-analysis-file-service:
     just sonarqube-coverage-analysis ofm-file-service ofm-file-service
+
+sonarqube-coverage-analysis-review-service:
+    just sonarqube-coverage-analysis ofm-review-service ofm-review-service
 
 sonarqube-coverage-analysis-gig-service:
     just sonarqube-coverage-analysis ofm-gig-service ofm-gig-service

@@ -74,6 +74,8 @@
   value: {{ default "http://api.ofm.local/v1/freelancer/onboarding/refresh" $stripe.connectRefreshURL }}
 - name: STRIPE_CONNECT_COUNTRY
   value: {{ default "US" $stripe.connectCountry }}
+- name: STRIPE_SKIP_TRANSFERS
+  value: "true"
 - name: METRICS_PORT
   value: "9609"
 - name: TRACING_ENABLED

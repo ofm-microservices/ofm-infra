@@ -13,6 +13,7 @@ jwt_secret="${REVIEW_JWT_SECRET:-${JWT_ACCESS_SECRET:-local-dev-secret-change-me
 jwt_ttl_seconds="${REVIEW_JWT_TTL_SECONDS:-3600}"
 gig_id="${ORDER_GIG_ID:-${REVIEW_GIG_ID:-}}"
 review_content="${REVIEW_CONTENT:-Great work. Thanks for the delivery.}"
+review_rating="${REVIEW_RATING:-5}"
 idempotency_key="${REVIEW_IDEMPOTENCY_KEY:-review-${timestamp}}"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${script_dir}/api-gateway-curl.sh"
@@ -58,6 +59,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --content=*)
       review_content="${1#*=}"
+      shift
+      ;;
+    --rating)
+      review_rating="${2:-}"
+      shift 2
+      ;;
+    --rating=*)
+      review_rating="${1#*=}"
       shift
       ;;
     --idempotency-key)
@@ -200,7 +209,7 @@ print_section() {
 }
 
 review_payload() {
-  jq -nc --arg content "$review_content" '{content: $content}'
+  jq -nc --arg content "$review_content" --argjson rating "$review_rating" '{content: $content, rating: $rating}'
 }
 
 log "----- OFM review flow $(date --iso-8601=seconds) -----"
@@ -211,6 +220,7 @@ log "Buyer ID: $buyer_id"
 log "Buyer email: $buyer_email"
 log "Order ID: $order_id"
 log "Gig ID: ${gig_id:-<not provided>}"
+log "Rating: $review_rating"
 log "Idempotency key: $idempotency_key"
 
 print_section "Create review"
