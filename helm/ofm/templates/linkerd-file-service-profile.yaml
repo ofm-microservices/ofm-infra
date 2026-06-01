@@ -1,0 +1,21 @@
+{{- if (index .Values.services "file-service").enabled }}
+apiVersion: linkerd.io/v1alpha2
+kind: ServiceProfile
+metadata:
+  name: file-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ofm.labels" . | nindent 4 }}
+spec:
+  routes:
+    - name: GetFileURL
+      condition:
+        pathRegex: ^/file\.v1\.FileService/GetFileURL$
+      isRetryable: false
+      timeout: 0ms
+    - name: GetFileURLs
+      condition:
+        pathRegex: ^/file\.v1\.FileService/GetFileURLs$
+      isRetryable: false
+      timeout: 0ms
+{{- end }}

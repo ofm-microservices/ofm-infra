@@ -15,6 +15,8 @@
   value: auth-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9501
 - name: GIG_SERVICE_ADDRESS
   value: gig-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9503
+- name: USER_SERVICE_ADDRESS
+  value: user-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9502
 - name: PAYMENT_SERVICE_ADDRESS
   value: payment-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9506
 - name: ORDER_SAGA_ADDRESS

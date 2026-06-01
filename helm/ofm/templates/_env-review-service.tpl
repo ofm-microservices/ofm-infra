@@ -51,9 +51,9 @@
 - name: NATS_STREAM_SAGA_COMMANDS
   value: SAGA_REVIEW_COMMANDS
 - name: REVIEW_PAGE_SIZE
-  value: 10
+  value: "10"
 - name: REVIEW_WINDOW_SIZE
-  value: 100
+  value: "100"
 - name: REVIEW_WINDOW_TTL
   value: 1m
 - name: REVIEW_CURSOR_SECRET

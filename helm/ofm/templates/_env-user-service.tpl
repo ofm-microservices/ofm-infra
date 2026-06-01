@@ -83,6 +83,8 @@
   value: "128"
 - name: NATS_SAGA_ADAPTIVE_HIGH_MAX_WAIT
   value: 2ms
+- name: FILE_SERVICE_ADDRESS
+  value: file-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9504
 - name: GRPC_HOST
   value: 0.0.0.0
 - name: GRPC_PORT
