@@ -36,6 +36,10 @@
   value: gig.created
 - name: NATS_SUBJECT_GIG_PUBLISHED
   value: gig.published
+- name: NATS_SUBJECT_GIG_PREVIEW_PROJECTION
+  value: gig.preview.projection.requested
+- name: NATS_SUBJECT_GIG_VIEWED
+  value: gig.viewed
 - name: NATS_SUBJECT_GIG_DELETED
   value: gig.deleted
 - name: NATS_SUBJECT_SAGA_CREATE_GIG
@@ -50,6 +54,8 @@
   value: gig_service_saga_create
 - name: NATS_DURABLE_SAGA_PUBLISH_GIG
   value: gig_service_saga_publish
+- name: NATS_DURABLE_GIG_PREVIEW_PROJECTION
+  value: gig_service_gig_preview_projection
 - name: NATS_SAGA_BATCH_SIZE
   value: "32"
 - name: NATS_SAGA_MAX_WAIT
@@ -94,6 +100,26 @@
   value: file-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9504
 - name: PAYMENT_SERVICE_ADDRESS
   value: payment-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9506
+- name: USER_SERVICE_ADDRESS
+  value: user-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9502
+- name: CLICKHOUSE_ENDPOINT
+  value: http://clickhouse.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:8123
+- name: CLICKHOUSE_USER
+  value: admin
+- name: CLICKHOUSE_PASSWORD
+  value: admin
+- name: CLICKHOUSE_DATABASE
+  value: default
+- name: CLICKHOUSE_TABLE
+  value: ofm_business_events
+- name: CLICKHOUSE_REFRESH_PERIOD
+  value: 5m
+- name: GIG_PREVIEW_PAGE_SIZE
+  value: "10"
+- name: GIG_PREVIEW_WINDOW_SIZE
+  value: "100"
+- name: GIG_PREVIEW_WINDOW_TTL
+  value: 5m
 - name: GRPC_HOST
   value: 0.0.0.0
 - name: GRPC_PORT

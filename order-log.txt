@@ -1,31 +1,31 @@
------ OFM order flow 2026-05-30T23:09:33+03:00 -----
+----- OFM order flow 2026-06-03T15:50:53+03:00 -----
 Log file: order-log.txt
 API base URL: http://api.ofm.local/v1
 
 Buyer ID: 019e474b-c686-752e-b02f-ff1eec695283
 Buyer email: 019e474b-c686-752e-b02f-ff1eec695283@example.com
-Gig ID: 019e706c-616e-7473-9c1a-838c33b75013
-Package ID: 019e706c-6222-70c7-81bf-d56e6c317cfc
-Idempotency key: order-1780171773
+Gig ID: 019e8d7d-89c7-7a79-8222-617583254aa1
+Package ID: 019e8d7d-8a60-7675-bc60-5e15cb1112e9
+Idempotency key: order-1780491053
 
 == Realtime handshake ==
 Connecting to realtime service: ws://172.21.0.2/ws
-{"connection_id": "01KSW2VY34C5WZA33T9QTW74TX.01KSX835EK6ZXSSFP29P6AVA9T", "type": "connection.ready"}
-Realtime connection ID: 01KSW2VY34C5WZA33T9QTW74TX.01KSX835EK6ZXSSFP29P6AVA9T
+{"connection_id": "01KT6J1TGEPZ4RCR0A2D35QAJV.01KT6RJTASPERJRD6BX5ACMNFX", "type": "connection.ready"}
+Realtime connection ID: 01KT6J1TGEPZ4RCR0A2D35QAJV.01KT6RJTASPERJRD6BX5ACMNFX
 
 == Start order ==
 POST http://api.ofm.local/v1/orders/start
-{"gig_id":"019e706c-616e-7473-9c1a-838c33b75013","package_id":"019e706c-6222-70c7-81bf-d56e6c317cfc"}
+{"gig_id":"019e8d7d-89c7-7a79-8222-617583254aa1","package_id":"019e8d7d-8a60-7675-bc60-5e15cb1112e9"}
 HTTP 201
 {
-  "saga_id": "019e7a81-99af-754a-844c-442661fc305e",
-  "order_id": "019e7a81-99af-754d-a12f-42defba8fbaf",
+  "saga_id": "019e8d89-6d1c-7dad-8b06-04cc0bac92c3",
+  "order_id": "019e8d89-6d1c-7db2-bd78-1974411cb2be",
   "status": "requirements_pending",
   "snapshot": {
-    "gig_id": "019e706c-616e-7473-9c1a-838c33b75013",
-    "package_id": "019e706c-6222-70c7-81bf-d56e6c317cfc",
+    "gig_id": "019e8d7d-89c7-7a79-8222-617583254aa1",
+    "package_id": "019e8d7d-8a60-7675-bc60-5e15cb1112e9",
     "seller_user_id": "019e4767-c408-74d7-8c4a-3b7fcb2ab3cf",
-    "gig_title": "Gig title 1780002611",
+    "gig_title": "Gig title 1780490275",
     "package_title": "basic",
     "package_description": "Basic package for the gig",
     "price_cents": 10000,
@@ -35,14 +35,14 @@ HTTP 201
   },
   "questions": [
     {
-      "id": "019e706c-6259-7812-8f23-7d325447cb72",
+      "id": "019e8d7d-8a92-72bc-ac05-f86a6a4de52d",
       "text": "What do you need built?",
       "type": "text",
       "required": true,
       "sort_order": 1
     },
     {
-      "id": "019e706c-6261-78c1-a763-26b226d26778",
+      "id": "019e8d7d-8a98-7361-b612-3c23cd9be6c6",
       "text": "Do you have a reference or brand guide?",
       "type": "text",
       "required": true,
@@ -52,26 +52,26 @@ HTTP 201
 }
 
 == Confirm order ==
-POST http://api.ofm.local/v1/orders/019e7a81-99af-754d-a12f-42defba8fbaf/confirm
-{"order_id":"019e7a81-99af-754d-a12f-42defba8fbaf","realtime_connection_id":"01KSW2VY34C5WZA33T9QTW74TX.01KSX835EK6ZXSSFP29P6AVA9T"}
+POST http://api.ofm.local/v1/orders/019e8d89-6d1c-7db2-bd78-1974411cb2be/confirm
+{"order_id":"019e8d89-6d1c-7db2-bd78-1974411cb2be","realtime_connection_id":"01KT6J1TGEPZ4RCR0A2D35QAJV.01KT6RJTASPERJRD6BX5ACMNFX"}
 HTTP 200
 {
   "saga_id": "",
-  "order_id": "019e7a81-99af-754d-a12f-42defba8fbaf",
+  "order_id": "019e8d89-6d1c-7db2-bd78-1974411cb2be",
   "status": "payment_pending",
-  "checkout_url": "https://checkout.stripe.com/c/pay/cs_test_a1d9ni2Z6Is5meGgKvNJtbNoDcE2TYdtNpAuVd7LKkPsdSgb2oquTxpPd6#fidnandhYHdWcXxpYCc%2FJ2FgY2RwaXEnKSdicGRmZGhqaWBTZHdsZGtxJz8nZmprcXdqaScpJ2R1bE5gfCc%2FJ3VuWnFgdnFaMDRRTHRHd1dsS2ZEPX1LaW5SRGdrUmBCb3ZvXWJqf1JkS1BEPEcyPUZzR11PTVdDaWFCcjYwdER3ZzIyXVRcfUNLSWk0VGRLV08ybXNyY1J%2FT0NEYm1%2FR281NXFwPHwwbUBPJyknY3dqaFZgd3Ngdyc%2FcXdwYCknZ2RmbmJ3anBrYUZqaWp3Jz8nJmNjY2NjYycpJ2lkfGpwcVF8dWAnPyd2bGtiaWBabHFgaCcpJ2BrZGdpYFVpZGZgbWppYWB3dic%2FcXdwYHgl",
-  "payment_id": "019e7a81-9b4c-70ac-9aa7-5adc43e6ad71"
+  "checkout_url": "https://checkout.stripe.com/c/pay/cs_test_a1Wc33DwtXp9dJ0lLOXMMoxXa2SbtzKNVP4G7zXUEjMqttVeYWN7TJSaqI#fidnandhYHdWcXxpYCc%2FJ2FgY2RwaXEnKSdicGRmZGhqaWBTZHdsZGtxJz8nZmprcXdqaScpJ2R1bE5gfCc%2FJ3VuWnFgdnFaMDRRTHRHd1dsS2ZEPX1LaW5SRGdrUmBCb3ZvXWJqf1JkS1BEPEcyPUZzR11PTVdDaWFCcjYwdER3ZzIyXVRcfUNLSWk0VGRLV08ybXNyY1J%2FT0NEYm1%2FR281NXFwPHwwbUBPJyknY3dqaFZgd3Ngdyc%2FcXdwYCknZ2RmbmJ3anBrYUZqaWp3Jz8nJmNjY2NjYycpJ2lkfGpwcVF8dWAnPyd2bGtiaWBabHFgaCcpJ2BrZGdpYFVpZGZgbWppYWB3dic%2FcXdwYHgl",
+  "payment_id": "019e8d89-6f64-7516-a67a-aa8786464457"
 }
 
 Checkout URL:
-https://checkout.stripe.com/c/pay/cs_test_a1d9ni2Z6Is5meGgKvNJtbNoDcE2TYdtNpAuVd7LKkPsdSgb2oquTxpPd6#fidnandhYHdWcXxpYCc%2FJ2FgY2RwaXEnKSdicGRmZGhqaWBTZHdsZGtxJz8nZmprcXdqaScpJ2R1bE5gfCc%2FJ3VuWnFgdnFaMDRRTHRHd1dsS2ZEPX1LaW5SRGdrUmBCb3ZvXWJqf1JkS1BEPEcyPUZzR11PTVdDaWFCcjYwdER3ZzIyXVRcfUNLSWk0VGRLV08ybXNyY1J%2FT0NEYm1%2FR281NXFwPHwwbUBPJyknY3dqaFZgd3Ngdyc%2FcXdwYCknZ2RmbmJ3anBrYUZqaWp3Jz8nJmNjY2NjYycpJ2lkfGpwcVF8dWAnPyd2bGtiaWBabHFgaCcpJ2BrZGdpYFVpZGZgbWppYWB3dic%2FcXdwYHgl
+https://checkout.stripe.com/c/pay/cs_test_a1Wc33DwtXp9dJ0lLOXMMoxXa2SbtzKNVP4G7zXUEjMqttVeYWN7TJSaqI#fidnandhYHdWcXxpYCc%2FJ2FgY2RwaXEnKSdicGRmZGhqaWBTZHdsZGtxJz8nZmprcXdqaScpJ2R1bE5gfCc%2FJ3VuWnFgdnFaMDRRTHRHd1dsS2ZEPX1LaW5SRGdrUmBCb3ZvXWJqf1JkS1BEPEcyPUZzR11PTVdDaWFCcjYwdER3ZzIyXVRcfUNLSWk0VGRLV08ybXNyY1J%2FT0NEYm1%2FR281NXFwPHwwbUBPJyknY3dqaFZgd3Ngdyc%2FcXdwYCknZ2RmbmJ3anBrYUZqaWp3Jz8nJmNjY2NjYycpJ2lkfGpwcVF8dWAnPyd2bGtiaWBabHFgaCcpJ2BrZGdpYFVpZGZgbWppYWB3dic%2FcXdwYHgl
 
 Complete the payment in your browser.
 Waiting for realtime payment event...
-{"saga_id": "019e7a81-99af-754a-844c-442661fc305e", "order_id": "019e7a81-99af-754d-a12f-42defba8fbaf", "user_id": "019e474b-c686-752e-b02f-ff1eec695283", "client_id": "01KSW2VY34C5WZA33T9QTW74TX.01KSX835EK6ZXSSFP29P6AVA9T", "correlation_id": "019e7a81-99af-754a-844c-442661fc305e", "dedupe_key": "019e7a81-99af-754a-844c-442661fc305e:realtime.order.confirmed", "kind": "order_confirmed", "title": "Order confirmed", "message": "Your payment was captured and the order is confirmed.", "severity": "success", "payment_intent_id": "019e7a81-9b4c-70ac-9aa7-5adc43e6ad71", "gig_title": "Gig title 1780002611", "package_tier": "basic", "package_description": "Basic package for the gig", "package_delivery_days": 3, "price_display": "usd 100.00", "action_label": "View receipt"}
+{"saga_id": "019e8d89-6d1c-7dad-8b06-04cc0bac92c3", "order_id": "019e8d89-6d1c-7db2-bd78-1974411cb2be", "user_id": "019e474b-c686-752e-b02f-ff1eec695283", "client_id": "01KT6J1TGEPZ4RCR0A2D35QAJV.01KT6RJTASPERJRD6BX5ACMNFX", "correlation_id": "019e8d89-6d1c-7dad-8b06-04cc0bac92c3", "dedupe_key": "019e8d89-6d1c-7dad-8b06-04cc0bac92c3:realtime.order.confirmed", "kind": "order_confirmed", "title": "Order confirmed", "message": "Your payment was captured and the order is confirmed.", "severity": "success", "payment_intent_id": "019e8d89-6f64-7516-a67a-aa8786464457", "gig_title": "Gig title 1780490275", "package_tier": "basic", "package_description": "Basic package for the gig", "package_delivery_days": 3, "price_display": "usd 100.00", "action_label": "View receipt"}
 Realtime payment event: order_confirmed
 
 == Done ==
 Order flow completed through checkout handoff.
-Order ID: 019e7a81-99af-754d-a12f-42defba8fbaf
-Checkout URL: https://checkout.stripe.com/c/pay/cs_test_a1d9ni2Z6Is5meGgKvNJtbNoDcE2TYdtNpAuVd7LKkPsdSgb2oquTxpPd6#fidnandhYHdWcXxpYCc%2FJ2FgY2RwaXEnKSdicGRmZGhqaWBTZHdsZGtxJz8nZmprcXdqaScpJ2R1bE5gfCc%2FJ3VuWnFgdnFaMDRRTHRHd1dsS2ZEPX1LaW5SRGdrUmBCb3ZvXWJqf1JkS1BEPEcyPUZzR11PTVdDaWFCcjYwdER3ZzIyXVRcfUNLSWk0VGRLV08ybXNyY1J%2FT0NEYm1%2FR281NXFwPHwwbUBPJyknY3dqaFZgd3Ngdyc%2FcXdwYCknZ2RmbmJ3anBrYUZqaWp3Jz8nJmNjY2NjYycpJ2lkfGpwcVF8dWAnPyd2bGtiaWBabHFgaCcpJ2BrZGdpYFVpZGZgbWppYWB3dic%2FcXdwYHgl
+Order ID: 019e8d89-6d1c-7db2-bd78-1974411cb2be
+Checkout URL: https://checkout.stripe.com/c/pay/cs_test_a1Wc33DwtXp9dJ0lLOXMMoxXa2SbtzKNVP4G7zXUEjMqttVeYWN7TJSaqI#fidnandhYHdWcXxpYCc%2FJ2FgY2RwaXEnKSdicGRmZGhqaWBTZHdsZGtxJz8nZmprcXdqaScpJ2R1bE5gfCc%2FJ3VuWnFgdnFaMDRRTHRHd1dsS2ZEPX1LaW5SRGdrUmBCb3ZvXWJqf1JkS1BEPEcyPUZzR11PTVdDaWFCcjYwdER3ZzIyXVRcfUNLSWk0VGRLV08ybXNyY1J%2FT0NEYm1%2FR281NXFwPHwwbUBPJyknY3dqaFZgd3Ngdyc%2FcXdwYCknZ2RmbmJ3anBrYUZqaWp3Jz8nJmNjY2NjYycpJ2lkfGpwcVF8dWAnPyd2bGtiaWBabHFgaCcpJ2BrZGdpYFVpZGZgbWppYWB3dic%2FcXdwYHgl

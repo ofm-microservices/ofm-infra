@@ -20,6 +20,7 @@ if err == null && is_object(parsed) {
 .env = to_string(.env) ?? ""
 .module = to_string(.module) ?? ""
 .operation = to_string(.operation) ?? ""
+.gig_id = to_string(.gig_id) ?? ""
 .level = to_string(.level) ?? ""
 .msg = to_string(.msg) ?? .message
 .trace_id = to_string(.trace_id) ?? ""
@@ -36,6 +37,26 @@ if err == null && is_object(parsed) {
 .duration_ms = to_int(.duration_ms) ?? 0
 '''
 
+[transforms.business_events]
+type = "filter"
+inputs = ["normalize"]
+condition = '''
+includes(["gig.viewed", "review.create", "order.completed"], .operation)
+'''
+
+[transforms.business_events_map]
+type = "remap"
+inputs = ["business_events"]
+source = '''
+.event_type = .operation
+.gig_id = to_string(.gig_id) ?? ""
+.order_id = to_string(.order_id) ?? ""
+.review_id = to_string(.review_id) ?? ""
+.user_id = to_string(.user_id) ?? ""
+.amount_cents = to_int(.amount_cents) ?? 0
+.raw = to_string(.raw) ?? .message
+'''
+
 [sinks.clickhouse]
 type = "clickhouse"
 inputs = ["normalize"]
@@ -49,8 +70,28 @@ format = "json_each_row"
 compression = "none"
 date_time_best_effort = true
 encoding.timestamp_format = "rfc3339"
-encoding.only_fields = ["timestamp", "service", "env", "module", "operation", "level", "msg", "message", "trace_id", "span_id", "attempt", "retryable", "duration_ms", "error", "stacktrace", "route", "subject", "status", "pid", "container_name", "raw"]
+encoding.only_fields = ["timestamp", "service", "env", "module", "operation", "gig_id", "level", "msg", "message", "trace_id", "span_id", "attempt", "retryable", "duration_ms", "error", "stacktrace", "route", "subject", "status", "pid", "container_name", "raw"]
 healthcheck.enabled = false
 [sinks.clickhouse.batch]
+max_events = 500
+timeout_secs = 2
+
+[sinks.business_events_clickhouse]
+type = "clickhouse"
+inputs = ["business_events_map"]
+endpoint = "http://clickhouse:8123"
+auth.strategy = "basic"
+auth.user = "admin"
+auth.password = "admin"
+database = "default"
+table = "ofm_business_events"
+format = "json_each_row"
+compression = "none"
+date_time_best_effort = true
+encoding.timestamp_format = "rfc3339"
+encoding.only_fields = ["timestamp", "service", "env", "operation", "event_type", "gig_id", "order_id", "review_id", "user_id", "amount_cents", "raw"]
+healthcheck.enabled = false
+
+[sinks.business_events_clickhouse.batch]
 max_events = 500
 timeout_secs = 2

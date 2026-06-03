@@ -11,6 +11,7 @@ GIG_CONNECTED_FREELANCER_ID="${GIG_CONNECTED_FREELANCER_ID:-aeac656a-e617-45f2-b
 timestamp="$(date +%s)"
 freelancer_id="${GIG_FREELANCER_ID:-$GIG_CONNECTED_FREELANCER_ID}"
 title="${GIG_TITLE:-Gig title ${timestamp}}"
+short_info="${GIG_SHORT_INFO:-Short info for the gig}"
 description="${GIG_DESCRIPTION:-A gig created by the gig-flow script}"
 category_id="${GIG_CATEGORY_ID:-1001}"
 currency="${GIG_CURRENCY:-usd}"
@@ -87,7 +88,7 @@ generate_jwt() {
     jq -nc \
       --arg sub "$freelancer_id" \
       --arg email "$freelancer_id@example.com" \
-      --arg username "${GIG_JWT_USERNAME:-gig-flow}" \
+      --arg username "${GIG_JWT_USERNAME:-alex1}" \
       --argjson iat "$now" \
       --argjson exp "$exp" \
       '{
@@ -290,12 +291,14 @@ basic_payload="$(
   jq -n \
     --arg gig_id "$gig_id" \
     --arg title "$title" \
+    --arg short_info "$short_info" \
     --arg description "$description" \
     --argjson category_id "$category_id" \
     --arg currency "$currency" \
     '{
       gig_id: $gig_id,
       title: $title,
+      short_info: $short_info,
       description: $description,
       category_id: $category_id,
       currency: $currency

@@ -1,25 +1,25 @@
------ OFM review flow 2026-05-30T23:10:34+03:00 -----
+----- OFM review flow 2026-06-03T15:56:33+03:00 -----
 Log file: review-log.txt
 API base URL: http://api.ofm.local/v1
 
 Buyer ID: 019e474b-c686-752e-b02f-ff1eec695283
 Buyer email: 019e474b-c686-752e-b02f-ff1eec695283@example.com
-Order ID: 019e7a81-99af-754d-a12f-42defba8fbaf
+Order ID: 019e8d89-6d1c-7db2-bd78-1974411cb2be
 Gig ID: <not provided>
 Rating: 5
-Idempotency key: review-1780171834
+Idempotency key: review-1780491393
 
 == Create review ==
 {"content":"Great work. Thanks for the delivery.","rating":5}
 HTTP 201
 {
-  "review_id": "019e7a82-8435-765d-a5c5-8037c23b102d",
-  "order_id": "019e7a81-99af-754d-a12f-42defba8fbaf",
-  "gig_id": "019e706c-616e-7473-9c1a-838c33b75013",
+  "review_id": "019e8d8e-9d50-7b11-bd68-0ef5ae644231",
+  "order_id": "019e8d89-6d1c-7db2-bd78-1974411cb2be",
+  "gig_id": "019e8d7d-89c7-7a79-8222-617583254aa1",
   "buyer_id": "019e474b-c686-752e-b02f-ff1eec695283",
   "content": "Great work. Thanks for the delivery.",
   "rating": 5,
-  "created_at": "2026-05-30T20:10:34.421909Z"
+  "created_at": "2026-06-03T12:56:34.38541Z"
 }
 
 Review flow finished successfully.

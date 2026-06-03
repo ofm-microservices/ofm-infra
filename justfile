@@ -136,11 +136,20 @@ k3d-import-images:
 k3s-import-images:
     bash ./scripts/k3d-import-images.sh
 
+k3d-restart-service service:
+    bash ./scripts/k3d-restart-service.sh {{service}}
+
 k3d-down:
     bash ./scripts/k3d-down.sh
 
 k3s-down:
     bash ./scripts/k3d-down.sh
+
+k3d-stop:
+    bash ./scripts/k3d-stop.sh
+
+k3s-stop:
+    bash ./scripts/k3d-stop.sh
 
 open-k3s-ports:
     bash ./scripts/open-k3s-ports.sh
