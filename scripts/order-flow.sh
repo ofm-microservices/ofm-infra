@@ -10,6 +10,7 @@ GIG_FLOW_LOG_FILE="${ORDER_GIG_FLOW_LOG_FILE:-gig-log.txt}"
 timestamp="$(date +%s)"
 buyer_id="${ORDER_BUYER_ID:-7c1d1af1-6be8-4e77-8e57-0b1f2d12e9aa}"
 buyer_email="${ORDER_BUYER_EMAIL:-${buyer_id}@example.com}"
+buyer_message="${ORDER_BUYER_MESSAGE:-Please make it clean and production-ready.}"
 jwt_secret="${ORDER_JWT_SECRET:-${JWT_ACCESS_SECRET:-local-dev-secret-change-me}}"
 jwt_ttl_seconds="${ORDER_JWT_TTL_SECONDS:-3600}"
 gig_id="${ORDER_GIG_ID:-}"
@@ -422,8 +423,9 @@ stop_realtime_listener() {
 trap stop_realtime_listener EXIT
 
 start_body="$(mktemp)"
+message_body="$(mktemp)"
 confirm_body="$(mktemp)"
-trap 'rm -f "$start_body" "$confirm_body"; stop_realtime_listener; ofm_api_gateway_cleanup' EXIT
+trap 'rm -f "$start_body" "$message_body" "$confirm_body"; stop_realtime_listener; ofm_api_gateway_cleanup' EXIT
 
 log "----- OFM order flow $(date -Is) -----"
 log "Log file: $LOG_FILE"
@@ -431,6 +433,7 @@ log "API base URL: $API_BASE_URL"
 log_blank
 log "Buyer ID: $buyer_id"
 log "Buyer email: $buyer_email"
+log "Buyer message: $buyer_message"
 log "Gig ID: $gig_id"
 log "Package ID: $package_id"
 log "Idempotency key: $idempotency_key"
@@ -471,6 +474,58 @@ order_id="$(jq -r '.order_id // .orderId // empty' "$start_body")"
 if [[ -z "$order_id" || "$order_id" == "null" ]]; then
   echo "failed to extract order id" >&2
   cat "$start_body" >&2
+  exit 1
+fi
+
+question_count="$(jq -r '(.questions // []) | length' "$start_body")"
+if [[ "$question_count" != "0" ]]; then
+  print_section "Submit requirements"
+  requirements_payload="$(
+    jq -nc \
+      --slurpfile start "$start_body" \
+      --arg order_id "$order_id" \
+      '{
+        order_id: $order_id,
+        answers: ($start[0].questions // [] | map({
+          question_id: .id,
+          value: ("answer-" + ((.sort_order // 0) | tostring))
+        }))
+      }'
+  )"
+  log "POST ${API_BASE_URL}/orders/${order_id}/requirements"
+  log "$requirements_payload"
+  requirements_status="$(
+    request_json POST "${API_BASE_URL}/orders/${order_id}/requirements" "$requirements_payload" "$confirm_body"
+  )"
+  log "HTTP ${requirements_status}"
+  log_json_file "$confirm_body"
+
+  if [[ "$requirements_status" != "200" ]]; then
+    echo "submit requirements failed" >&2
+    exit 1
+  fi
+fi
+
+print_section "Submit message"
+message_payload="$(
+  jq -nc \
+    --arg order_id "$order_id" \
+    --arg message "$buyer_message" \
+    '{
+      order_id: $order_id,
+      message: $message
+    }'
+)"
+log "POST ${API_BASE_URL}/orders/${order_id}/message"
+log "$message_payload"
+message_status="$(
+  request_json POST "${API_BASE_URL}/orders/${order_id}/message" "$message_payload" "$message_body"
+)"
+log "HTTP ${message_status}"
+log_json_file "$message_body"
+
+if [[ "$message_status" != "200" ]]; then
+  echo "submit message failed" >&2
   exit 1
 fi
 
