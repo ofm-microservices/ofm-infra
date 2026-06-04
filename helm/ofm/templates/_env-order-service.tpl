@@ -50,6 +50,10 @@
   value: order.message_submitted
 - name: NATS_SUBJECT_ORDER_ATTACHMENT_UPLOADED
   value: order.attachment_uploaded
+- name: FILE_SERVICE_ADDRESS
+  value: file-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9504
+- name: USER_SERVICE_ADDRESS
+  value: user-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9502
 - name: METRICS_PORT
   value: "9608"
 - name: TRACING_ENABLED

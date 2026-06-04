@@ -48,6 +48,8 @@
   value: payment.intent
 - name: NATS_SUBJECT_PAYMENT_INTENT_RESULT
   value: payment.intent.result
+- name: NATS_SUBJECT_PAYMENT_PROJECTION
+  value: payment.projection
 - name: NATS_SUBJECT_PAYMENT_WEBHOOK
   value: payment.webhook
 - name: NATS_SUBJECT_PAYMENT_STATUS

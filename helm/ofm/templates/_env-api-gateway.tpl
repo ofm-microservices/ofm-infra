@@ -19,6 +19,8 @@
   value: user-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9502
 - name: PAYMENT_SERVICE_ADDRESS
   value: payment-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9506
+- name: ORDER_SERVICE_ADDRESS
+  value: order-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9505
 - name: ORDER_SAGA_ADDRESS
   value: order-saga-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9507
 - name: REVIEW_SERVICE_ADDRESS
