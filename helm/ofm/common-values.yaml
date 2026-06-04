@@ -126,6 +126,11 @@ services:
         containerPort: 9604
         servicePort: 9604
         protocol: TCP
+    ingress:
+      enabled: true
+      host: file.ofm.local
+      path: /
+      grpc: true
 
   payment-service:
     enabled: true

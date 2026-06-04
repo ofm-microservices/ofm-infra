@@ -6,6 +6,15 @@ REALTIME_WS_URL="${ORDER_REALTIME_WS_URL:-ws://172.21.0.2/ws}"
 REALTIME_WS_HOST="${ORDER_REALTIME_WS_HOST:-realtime.ofm.local}"
 LOG_FILE="${ORDER_LOG_FILE:-order-complete-log.txt}"
 GIG_FLOW_LOG_FILE="${ORDER_GIG_FLOW_LOG_FILE:-gig-log.txt}"
+FILE_SERVICE_GRPC_HOST="${ORDER_FILE_SERVICE_GRPC_HOST:-file.ofm.local}"
+FILE_SERVICE_GRPC_PORT="${ORDER_FILE_SERVICE_GRPC_PORT:-80}"
+FILE_SERVICE_GRPC_AUTHORITY="${ORDER_FILE_SERVICE_GRPC_AUTHORITY:-file.ofm.local}"
+FILE_SERVICE_GRPC_ADDRESS="${ORDER_FILE_SERVICE_GRPC_ADDRESS:-}"
+FILE_SERVICE_KUBE_NAMESPACE="${ORDER_FILE_SERVICE_KUBE_NAMESPACE:-${OFM_K3D_NAMESPACE:-ofm}}"
+FILE_SERVICE_KUBE_CONFIG="${ORDER_FILE_SERVICE_KUBE_CONFIG:-${OFM_K3D_KUBECONFIG:-$HOME/.kube/k3d-ofm.yaml}}"
+FILE_SERVICE_FORWARD_PORT="${ORDER_FILE_SERVICE_FORWARD_PORT:-9504}"
+FILE_SERVICE_FORWARD_LOG="${ORDER_FILE_SERVICE_FORWARD_LOG:-/tmp/ofm-file-service-order-complete-port-forward.log}"
+FILE_SERVICE_PORT_FORWARD_PID=""
 
 timestamp="$(date +%s)"
 buyer_id="${ORDER_BUYER_ID:-7c1d1af1-6be8-4e77-8e57-0b1f2d12e9aa}"
@@ -20,6 +29,7 @@ order_id="${ORDER_ORDER_ID:-}"
 realtime_connection_id="${ORDER_REALTIME_CONNECTION_ID:-}"
 idempotency_key="${ORDER_IDEMPOTENCY_KEY:-order-${timestamp}}"
 delivery_message="${ORDER_DELIVERY_MESSAGE:-I finished the work. Please review the delivery.}"
+delivery_attachment_files="${ORDER_DELIVERY_ATTACHMENT_FILES:-[\"/home/alex/Downloads/ainz.jpg\",\"/home/alex/Downloads/yagami.jpg\"]}"
 delivery_attachment_ids="${ORDER_DELIVERY_ATTACHMENT_IDS:-[]}"
 realtime_event_file="$(mktemp)"
 realtime_connection_file="$(mktemp)"
@@ -100,6 +110,38 @@ while [[ $# -gt 0 ]]; do
       ;;
     --delivery-message=*)
       delivery_message="${1#*=}"
+      shift
+      ;;
+    --delivery-attachment-file)
+      delivery_attachment_files="$(jq -nc --argjson current "${delivery_attachment_files}" --arg path "${2:-}" '$current + [$path]' )"
+      shift 2
+      ;;
+    --delivery-attachment-file=*)
+      delivery_attachment_files="$(jq -nc --argjson current "${delivery_attachment_files}" --arg path "${1#*=}" '$current + [$path]' )"
+      shift
+      ;;
+    --delivery-attachment-files)
+      delivery_attachment_files="${2:-[]}"
+      shift 2
+      ;;
+    --delivery-attachment-files=*)
+      delivery_attachment_files="${1#*=}"
+      shift
+      ;;
+    --delivery-attachment-id)
+      delivery_attachment_ids="$(jq -nc --argjson current "${delivery_attachment_ids}" --arg id "${2:-}" '$current + [$id]' )"
+      shift 2
+      ;;
+    --delivery-attachment-id=*)
+      delivery_attachment_ids="$(jq -nc --argjson current "${delivery_attachment_ids}" --arg id "${1#*=}" '$current + [$id]' )"
+      shift
+      ;;
+    --delivery-attachment-ids)
+      delivery_attachment_ids="${2:-[]}"
+      shift 2
+      ;;
+    --delivery-attachment-ids=*)
+      delivery_attachment_ids="${1#*=}"
       shift
       ;;
     *)
@@ -279,10 +321,90 @@ print_section() {
   log "== $1 =="
 }
 
+upload_delivery_files() {
+  local files_json="$1"
+  local owner_id="$2"
+  local order_id="$3"
+  local request_json response_file
+
+  if ! jq -e . >/dev/null 2>&1 <<<"$files_json"; then
+    echo "ORDER_DELIVERY_ATTACHMENT_FILES must be valid JSON array" >&2
+    exit 1
+  fi
+
+  if [[ "$(jq 'length' <<<"$files_json")" -eq 0 ]]; then
+    printf '[]'
+    return 0
+  fi
+
+  request_json="$(
+    python3 - "$files_json" "$owner_id" "$order_id" <<'PY'
+import base64
+import json
+import mimetypes
+import pathlib
+import sys
+
+files = json.loads(sys.argv[1])
+owner_id = sys.argv[2]
+order_id = sys.argv[3]
+
+payload = {
+    "ownerId": owner_id,
+    "prefix": f"orders/{order_id}/delivery",
+    "files": [],
+}
+
+for raw_path in files:
+    path = pathlib.Path(raw_path)
+    data = path.read_bytes()
+    mime, _ = mimetypes.guess_type(str(path))
+    payload["files"].append({
+        "filename": path.name,
+        "contentType": mime or "application/octet-stream",
+        "data": base64.b64encode(data).decode("ascii"),
+    })
+
+print(json.dumps(payload))
+PY
+  )"
+
+  response_file="$(mktemp)"
+  if [[ -n "$FILE_SERVICE_GRPC_ADDRESS" ]]; then
+    if ! grpcurl -plaintext -authority "$FILE_SERVICE_GRPC_AUTHORITY" -d "$request_json" "$FILE_SERVICE_GRPC_ADDRESS" file.v1.FileService/UploadFiles >"$response_file"; then
+      cat "$response_file" >&2 || true
+      rm -f "$response_file"
+      echo "delivery file upload failed" >&2
+      exit 1
+    fi
+  else
+    OFM_K3D_KUBECONFIG="$FILE_SERVICE_KUBE_CONFIG" \
+      OFM_K3D_NAMESPACE="$FILE_SERVICE_KUBE_NAMESPACE" \
+      FILE_SERVICE_FORWARD_PORT="$FILE_SERVICE_FORWARD_PORT" \
+      FILE_SERVICE_FORWARD_LOG="$FILE_SERVICE_FORWARD_LOG" \
+      ofm_file_service_port_forward_start
+
+    if ! grpcurl -plaintext -import-path "${script_dir}/../../ofm-common/proto" -proto file/v1/file.proto \
+      -d "$request_json" "127.0.0.1:${FILE_SERVICE_FORWARD_PORT}" file.v1.FileService/UploadFiles >"$response_file"; then
+      cat "$response_file" >&2 || true
+      rm -f "$response_file"
+      echo "delivery file upload failed" >&2
+      exit 1
+    fi
+  fi
+
+  jq -c '[.files[]? | (.file_id // .fileId)] | map(select(. != null and . != ""))' "$response_file"
+  rm -f "$response_file"
+}
+
 require_command curl
 require_command jq
 require_command python3
 require_command openssl
+require_command grpcurl
+require_command kubectl
+
+. "${script_dir}/file-service-port-forward.sh"
 
 start_realtime_listener() {
   python3 -u - "$REALTIME_WS_URL" "$REALTIME_WS_HOST" "$buyer_access_token" "$realtime_connection_file" "$realtime_event_file" <<'PY' >>"$LOG_FILE" 2>&1 &
@@ -474,13 +596,11 @@ wait_for_realtime_event() {
   done
 }
 
-trap stop_realtime_listener EXIT
-
 start_body="$(mktemp)"
 confirm_body="$(mktemp)"
 deliver_body="$(mktemp)"
 accept_body="$(mktemp)"
-trap 'rm -f "$start_body" "$confirm_body" "$deliver_body" "$accept_body"; stop_realtime_listener' EXIT
+trap 'rm -f "$start_body" "$confirm_body" "$deliver_body" "$accept_body"; stop_realtime_listener; ofm_file_service_port_forward_cleanup' EXIT
 
 log "----- OFM order complete flow $(date -Is) -----"
 log "Log file: $LOG_FILE"
@@ -507,6 +627,25 @@ seller_access_token="${ORDER_SELLER_ACCESS_TOKEN:-$(generate_jwt "$seller_id" "$
 seller_auth_header="Authorization: Bearer $seller_access_token"
 
 print_section "Seller delivery"
+if ! jq -e . >/dev/null 2>&1 <<<"$delivery_attachment_files"; then
+  echo "ORDER_DELIVERY_ATTACHMENT_FILES must be valid JSON array" >&2
+  exit 1
+fi
+if ! jq -e . >/dev/null 2>&1 <<<"$delivery_attachment_ids"; then
+  echo "ORDER_DELIVERY_ATTACHMENT_IDS must be valid JSON array" >&2
+  exit 1
+fi
+
+if [[ "$(jq 'length' <<<"$delivery_attachment_files")" -gt 0 ]]; then
+  if [[ -n "$FILE_SERVICE_GRPC_ADDRESS" ]]; then
+    log "Uploading delivery files through file-service: ${FILE_SERVICE_GRPC_ADDRESS}"
+  else
+    log "Uploading delivery files through in-cluster file-service"
+  fi
+  delivery_attachment_ids="$(upload_delivery_files "$delivery_attachment_files" "$seller_id" "$order_id")"
+  log "Uploaded delivery file IDs: $delivery_attachment_ids"
+fi
+
 deliver_payload="$(
   jq -nc \
     --arg message "$delivery_message" \
