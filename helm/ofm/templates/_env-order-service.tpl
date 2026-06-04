@@ -50,6 +50,10 @@
   value: order.message_submitted
 - name: NATS_SUBJECT_ORDER_ATTACHMENT_UPLOADED
   value: order.attachment_uploaded
+- name: NATS_SUBJECT_ORDER_REQUIREMENTS_PROJECTION_REQUESTED
+  value: order.projection.requirements
+- name: NATS_DURABLE_ORDER_REQUIREMENTS_PROJECTION
+  value: order_service_requirements_projection
 - name: FILE_SERVICE_ADDRESS
   value: file-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9504
 - name: USER_SERVICE_ADDRESS
