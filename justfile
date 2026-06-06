@@ -259,6 +259,11 @@ sonarqube-scan-order-service:
 sonarqube-scan-mail-service:
     just sonarqube-scan ofm-mail-service ofm-mail-service "OFM Mail Service"
 
+go-lint-all:
+    for repo in ../ofm-common ../ofm-api-gateway ../ofm-auth-service ../ofm-user-service ../ofm-file-service ../ofm-gig-service ../ofm-review-service ../ofm-order-service ../ofm-order-saga-service ../ofm-payment-service ../ofm-registration-saga-service ../ofm-search-service ../ofm-mail-service; do \
+        (cd "$repo" && GOCACHE=/tmp/gocache go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8 run ./...); \
+    done
+
 sonarqube-scan-registration-saga-service:
     just sonarqube-scan ofm-registration-saga-service ofm-registration-saga-service "OFM Registration Saga Service"
 

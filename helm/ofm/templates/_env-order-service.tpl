@@ -40,8 +40,6 @@
   value: order.created
 - name: NATS_SUBJECT_ORDER_PAYMENT_PENDING
   value: order.payment_pending
-- name: NATS_SUBJECT_ORDER_FUNDED
-  value: order.funded
 - name: NATS_SUBJECT_ORDER_FAILED
   value: order.failed
 - name: NATS_SUBJECT_ORDER_REQUIREMENTS_SUBMITTED
@@ -50,6 +48,8 @@
   value: order.message_submitted
 - name: NATS_SUBJECT_ORDER_ATTACHMENT_UPLOADED
   value: order.attachment_uploaded
+- name: NATS_SUBJECT_ORDER_FUNDED
+  value: order.funded
 - name: NATS_SUBJECT_ORDER_REQUIREMENTS_PROJECTION_REQUESTED
   value: order.projection.requirements
 - name: NATS_DURABLE_ORDER_REQUIREMENTS_PROJECTION

@@ -30,8 +30,14 @@
   value: ""
 - name: NATS_STREAM_GIG_EVENTS
   value: GIG_EVENTS
+- name: NATS_STREAM_ORDER_EVENTS
+  value: ORDER_EVENTS
+- name: NATS_STREAM_REVIEW_EVENTS
+  value: REVIEW_EVENTS
 - name: NATS_STREAM_SAGA_COMMANDS
   value: SAGA_GIG_COMMANDS
+- name: NATS_SUBJECT_ORDER_FUNDED
+  value: order.funded
 - name: NATS_SUBJECT_GIG_CREATED
   value: gig.created
 - name: NATS_SUBJECT_GIG_PUBLISHED
@@ -56,6 +62,8 @@
   value: gig_service_saga_publish
 - name: NATS_DURABLE_GIG_PREVIEW_PROJECTION
   value: gig_service_gig_preview_projection
+- name: NATS_DURABLE_ORDER_FUNDED
+  value: gig_service_order_funded
 - name: NATS_SAGA_BATCH_SIZE
   value: "32"
 - name: NATS_SAGA_MAX_WAIT
@@ -102,6 +110,10 @@
   value: payment-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9506
 - name: USER_SERVICE_ADDRESS
   value: user-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9502
+- name: REVIEW_SERVICE_ADDRESS
+  value: review-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9510
+- name: ORDER_SERVICE_ADDRESS
+  value: order-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9505
 - name: CLICKHOUSE_ENDPOINT
   value: http://clickhouse.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:8123
 - name: CLICKHOUSE_USER

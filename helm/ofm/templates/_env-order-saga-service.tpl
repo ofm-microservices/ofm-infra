@@ -12,6 +12,8 @@
   value: ""
 - name: NATS_PASSWORD
   value: ""
+- name: SUBJECT_ORDER_FUNDED
+  value: order.funded
 - name: SCYLLA_HOSTS
   value: {{ $host }}
 - name: SCYLLA_PORT
