@@ -158,7 +158,7 @@ asyncapi-docs-validate:
     {{asyncapi_compose}} run --rm asyncapi-validate
 
 asyncapi-docs-build:
-    {{asyncapi_compose}} run --rm asyncapi-generate
+    just asyncapi-docs-validate
 
 asyncapi-docs-serve:
     {{asyncapi_compose}} up -d --force-recreate asyncapi-preview
@@ -180,7 +180,7 @@ buf-common-generate:
 
 grpc-docs-build:
     mkdir -p ../ofm-docs/grpc
-    {{grpc_docs_compose}} run --rm grpc-docs-generate
+    {{grpc_docs_compose}} up -d --force-recreate grpc-docs-generate
 
 grpc-docs-serve:
     just grpc-docs-build
