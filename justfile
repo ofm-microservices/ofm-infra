@@ -101,7 +101,7 @@ payment-infra-up:
     bash ./scripts/payment-infra-up.sh
 
 payment-webhook-ngrok:
-    ngrok http --host-header=payment.ofm.local 172.21.0.2:80
+    ingress_ip="$(kubectl --kubeconfig "$HOME/.kube/k3d-ofm.yaml" -n ofm get ingress payment-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')" && test -n "$ingress_ip" && ngrok http --host-header=payment.ofm.local "$ingress_ip:80"
 
 payment-infra-down:
     {{compose}} stop nats payment-service-redis payment-service-yugabyte

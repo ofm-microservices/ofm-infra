@@ -2,7 +2,6 @@
 set -euo pipefail
 
 API_BASE_URL="${ORDER_API_BASE_URL:-http://api.ofm.local/v1}"
-REALTIME_WS_URL="${ORDER_REALTIME_WS_URL:-ws://172.21.0.2/ws}"
 REALTIME_WS_HOST="${ORDER_REALTIME_WS_HOST:-realtime.ofm.local}"
 LOG_FILE="${ORDER_LOG_FILE:-order-complete-log.txt}"
 GIG_FLOW_LOG_FILE="${ORDER_GIG_FLOW_LOG_FILE:-gig-log.txt}"
@@ -21,22 +20,56 @@ buyer_id="${ORDER_BUYER_ID:-7c1d1af1-6be8-4e77-8e57-0b1f2d12e9aa}"
 buyer_email="${ORDER_BUYER_EMAIL:-${buyer_id}@example.com}"
 seller_id="${ORDER_SELLER_ID:-}"
 seller_email="${ORDER_SELLER_EMAIL:-}"
+admin_id="${ORDER_ADMIN_ID:-019e0000-0000-7000-8000-000000000001}"
+admin_email="${ORDER_ADMIN_EMAIL:-${admin_id}@example.com}"
 jwt_secret="${ORDER_JWT_SECRET:-${JWT_ACCESS_SECRET:-local-dev-secret-change-me}}"
 jwt_ttl_seconds="${ORDER_JWT_TTL_SECONDS:-3600}"
 gig_id="${ORDER_GIG_ID:-}"
 package_id="${ORDER_PACKAGE_ID:-}"
 order_id="${ORDER_ORDER_ID:-}"
-realtime_connection_id="${ORDER_REALTIME_CONNECTION_ID:-}"
 idempotency_key="${ORDER_IDEMPOTENCY_KEY:-order-${timestamp}}"
 delivery_message="${ORDER_DELIVERY_MESSAGE:-I finished the work. Please review the delivery.}"
+dispute_reason="${ORDER_CANCEL_REASON:-${ORDER_DISPUTE_REASON:-The buyer is not satisfied with the delivery.}}"
+dispute_resolution_reason="${ORDER_DISPUTE_RESOLUTION_REASON:-Admin resolved the disputed order.}"
+freelancer_percentage="${ORDER_FREELANCER_PERCENTAGE:-50}"
+customer_percentage="${ORDER_CUSTOMER_PERCENTAGE:-50}"
+order_complete_mode="${ORDER_COMPLETE_MODE:-success}"
+if [[ "${ORDER_CANCEL_FLOW:-0}" == "1" ]]; then
+  order_complete_mode="cancel_after_delivery"
+fi
 delivery_attachment_files="${ORDER_DELIVERY_ATTACHMENT_FILES:-[\"/home/alex/Downloads/ainz.jpg\",\"/home/alex/Downloads/yagami.jpg\"]}"
 delivery_attachment_ids="${ORDER_DELIVERY_ATTACHMENT_IDS:-[]}"
 realtime_event_file="$(mktemp)"
-realtime_connection_file="$(mktemp)"
 realtime_listener_pid=""
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${script_dir}/api-gateway-curl.sh"
 ofm_api_gateway_configure "$API_BASE_URL" || true
+
+ofm_realtime_configure() {
+  local base_url="${ORDER_REALTIME_WS_URL:-}"
+  local kubeconfig_path="${OFM_K3D_KUBECONFIG:-$HOME/.kube/k3d-ofm.yaml}"
+  local namespace="${OFM_K3D_NAMESPACE:-ofm}"
+  local realtime_ip=""
+
+  if [[ -n "$base_url" ]]; then
+    REALTIME_WS_URL="$base_url"
+    return 0
+  fi
+
+  if command -v kubectl >/dev/null 2>&1; then
+    realtime_ip="$(
+      kubectl --kubeconfig "$kubeconfig_path" -n "$namespace" get ingress realtime-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true
+    )"
+  fi
+
+  if [[ -z "$realtime_ip" ]]; then
+    realtime_ip="172.23.0.2"
+  fi
+
+  REALTIME_WS_URL="ws://${realtime_ip}/ws"
+}
+
+ofm_realtime_configure
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -96,20 +129,40 @@ while [[ $# -gt 0 ]]; do
       order_id="${1#*=}"
       shift
       ;;
-    --realtime-connection-id)
-      realtime_connection_id="${2:-}"
-      shift 2
-      ;;
-    --realtime-connection-id=*)
-      realtime_connection_id="${1#*=}"
-      shift
-      ;;
     --delivery-message)
       delivery_message="${2:-}"
       shift 2
       ;;
     --delivery-message=*)
       delivery_message="${1#*=}"
+      shift
+      ;;
+    --cancel)
+      order_complete_mode="cancel_after_delivery"
+      shift
+      ;;
+    --dispute)
+      order_complete_mode="cancel_after_delivery"
+      shift
+      ;;
+    --cancel-after-delivery)
+      order_complete_mode="cancel_after_delivery"
+      shift
+      ;;
+    --buyer-cancel)
+      order_complete_mode="buyer_cancel"
+      shift
+      ;;
+    --seller-cancel)
+      order_complete_mode="seller_cancel"
+      shift
+      ;;
+    --cancel-reason)
+      dispute_reason="${2:-}"
+      shift 2
+      ;;
+    --cancel-reason=*)
+      dispute_reason="${1#*=}"
       shift
       ;;
     --delivery-attachment-file)
@@ -208,6 +261,7 @@ generate_jwt() {
   local subject="$1"
   local email="$2"
   local username="$3"
+  local roles_json="${4:-[]}"
   local now exp header payload signing_input signature
 
   now="$(date +%s)"
@@ -218,12 +272,14 @@ generate_jwt() {
       --arg sub "$subject" \
       --arg email "$email" \
       --arg username "$username" \
+      --argjson roles "$roles_json" \
       --argjson iat "$now" \
       --argjson exp "$exp" \
       '{
         sub: $sub,
         email: $email,
         username: $username,
+        roles: $roles,
         iat: $iat,
         exp: $exp
       }'
@@ -248,6 +304,8 @@ generate_jwt() {
 
 buyer_access_token="${ORDER_BUYER_ACCESS_TOKEN:-$(generate_jwt "$buyer_id" "$buyer_email" "${ORDER_JWT_USERNAME:-order-complete-buyer}")}"
 buyer_auth_header="Authorization: Bearer $buyer_access_token"
+admin_access_token="${ORDER_ADMIN_ACCESS_TOKEN:-$(generate_jwt "$admin_id" "$admin_email" "${ORDER_ADMIN_USERNAME:-order-complete-admin}" '["admin"]')}"
+admin_auth_header="Authorization: Bearer $admin_access_token"
 
 touch "$LOG_FILE"
 : > "$LOG_FILE"
@@ -282,7 +340,6 @@ request_json() {
   local url="$3"
   local payload="$4"
   local body_file="$5"
-  local connection_id="${6:-}"
   local status
 
   if [[ -n "$payload" ]]; then
@@ -293,7 +350,6 @@ request_json() {
         -H 'Content-Type: application/json' \
         -H "$auth_header" \
         -H "Idempotency-Key: $idempotency_key" \
-        ${connection_id:+-H "X-Realtime-Connection-Id: $connection_id"} \
         -d "$payload" \
         -o "$body_file" \
         -w '%{http_code}' \
@@ -306,7 +362,6 @@ request_json() {
         -X "$method" \
         -H "$auth_header" \
         -H "Idempotency-Key: $idempotency_key" \
-        ${connection_id:+-H "X-Realtime-Connection-Id: $connection_id"} \
         -o "$body_file" \
         -w '%{http_code}' \
         "$url"
@@ -407,7 +462,7 @@ require_command kubectl
 . "${script_dir}/file-service-port-forward.sh"
 
 start_realtime_listener() {
-  python3 -u - "$REALTIME_WS_URL" "$REALTIME_WS_HOST" "$buyer_access_token" "$realtime_connection_file" "$realtime_event_file" <<'PY' >>"$LOG_FILE" 2>&1 &
+  python3 -u - "$REALTIME_WS_URL" "$REALTIME_WS_HOST" "$buyer_access_token" "$realtime_event_file" <<'PY' >>"$LOG_FILE" 2>&1 &
 import base64
 import hashlib
 import json
@@ -418,7 +473,7 @@ import struct
 import sys
 import urllib.parse
 
-ws_url, host_header, token, connection_file, event_file = sys.argv[1:6]
+ws_url, host_header, token, event_file = sys.argv[1:5]
 
 def fail(msg):
     print(msg, file=sys.stderr)
@@ -519,7 +574,6 @@ def read_frame(initial=b""):
     return opcode, payload, data[length:]
 
 buffer = remainder
-connection_id = None
 while True:
     if len(buffer) < 2:
         buffer += recv_exact(2 - len(buffer))
@@ -536,11 +590,6 @@ while True:
         print(payload.decode(errors="replace"))
         continue
     print(json.dumps(message), flush=True)
-    if message.get("type") == "connection.ready" and not connection_id:
-        connection_id = message.get("connection_id", "")
-        with open(connection_file, "w", encoding="utf-8") as fh:
-            fh.write(connection_id)
-            fh.flush()
     event_type = message.get("type", "") or message.get("kind", "")
     if event_type:
         with open(event_file, "w", encoding="utf-8") as fh:
@@ -548,19 +597,6 @@ while True:
             fh.flush()
 PY
   realtime_listener_pid=$!
-
-  for _ in {1..20}; do
-    if [[ -s "$realtime_connection_file" ]]; then
-      realtime_connection_id="$(cat "$realtime_connection_file")"
-      break
-    fi
-    sleep 1
-  done
-
-  if [[ -z "${realtime_connection_id}" ]]; then
-    echo "failed to obtain realtime connection id" >&2
-    exit 1
-  fi
 }
 
 stop_realtime_listener() {
@@ -568,7 +604,7 @@ stop_realtime_listener() {
     kill "${realtime_listener_pid}" >/dev/null 2>&1 || true
     wait "${realtime_listener_pid}" >/dev/null 2>&1 || true
   fi
-  rm -f "$realtime_event_file" "$realtime_connection_file"
+  rm -f "$realtime_event_file"
 }
 
 wait_for_realtime_event() {
@@ -609,84 +645,186 @@ log_blank
 log "Buyer ID: $buyer_id"
 log "Buyer email: $buyer_email"
 log "Order ID: $order_id"
+log "Mode: $order_complete_mode"
 log "Idempotency key: $idempotency_key"
 
 print_section "Realtime handshake"
 log "Connecting to realtime service: ${REALTIME_WS_URL}"
 start_realtime_listener
-log "Realtime connection ID: ${realtime_connection_id}"
 
-if [[ -z "${seller_id}" ]]; then
-  echo "ORDER_SELLER_ID is required for delivery/completion flow" >&2
-  exit 1
-fi
-if [[ -z "${seller_email}" ]]; then
-  seller_email="${seller_id}@example.com"
-fi
-seller_access_token="${ORDER_SELLER_ACCESS_TOKEN:-$(generate_jwt "$seller_id" "$seller_email" "${ORDER_SELLER_USERNAME:-order-complete-seller}")}"
-seller_auth_header="Authorization: Bearer $seller_access_token"
+case "$order_complete_mode" in
+  success|cancel_after_delivery|buyer_cancel|seller_cancel)
+    ;;
+  *)
+    echo "unknown ORDER_COMPLETE_MODE: $order_complete_mode" >&2
+    exit 1
+    ;;
+esac
 
-print_section "Seller delivery"
-if ! jq -e . >/dev/null 2>&1 <<<"$delivery_attachment_files"; then
-  echo "ORDER_DELIVERY_ATTACHMENT_FILES must be valid JSON array" >&2
-  exit 1
-fi
-if ! jq -e . >/dev/null 2>&1 <<<"$delivery_attachment_ids"; then
-  echo "ORDER_DELIVERY_ATTACHMENT_IDS must be valid JSON array" >&2
-  exit 1
-fi
+needs_seller="0"
+case "$order_complete_mode" in
+  success|cancel_after_delivery|seller_cancel)
+    needs_seller="1"
+    ;;
+esac
 
-if [[ "$(jq 'length' <<<"$delivery_attachment_files")" -gt 0 ]]; then
-  if [[ -n "$FILE_SERVICE_GRPC_ADDRESS" ]]; then
-    log "Uploading delivery files through file-service: ${FILE_SERVICE_GRPC_ADDRESS}"
-  else
-    log "Uploading delivery files through in-cluster file-service"
+seller_auth_header=""
+if [[ "$needs_seller" == "1" ]]; then
+  if [[ -z "${seller_id}" ]]; then
+    echo "ORDER_SELLER_ID is required for this order complete mode" >&2
+    exit 1
   fi
-  delivery_attachment_ids="$(upload_delivery_files "$delivery_attachment_files" "$seller_id" "$order_id")"
-  log "Uploaded delivery file IDs: $delivery_attachment_ids"
+fi
+if [[ -n "${seller_id}" ]]; then
+  if [[ -z "${seller_email}" ]]; then
+    seller_email="${seller_id}@example.com"
+  fi
+  seller_access_token="${ORDER_SELLER_ACCESS_TOKEN:-$(generate_jwt "$seller_id" "$seller_email" "${ORDER_SELLER_USERNAME:-order-complete-seller}")}"
+  seller_auth_header="Authorization: Bearer $seller_access_token"
 fi
 
-deliver_payload="$(
-  jq -nc \
-    --arg message "$delivery_message" \
-    --argjson attachment_ids "$delivery_attachment_ids" \
-    '{
-      delivery_message: $message,
-      attachment_ids: $attachment_ids
-    }'
-)"
-log "POST ${API_BASE_URL}/orders/${order_id}/deliver"
-log "$deliver_payload"
-deliver_status="$(
-  request_json "$seller_auth_header" POST "${API_BASE_URL}/orders/${order_id}/deliver" "$deliver_payload" "$deliver_body"
-)"
-log "HTTP ${deliver_status}"
-log_json_file "$deliver_body"
+if [[ "$order_complete_mode" == "success" || "$order_complete_mode" == "cancel_after_delivery" ]]; then
+  print_section "Seller delivery"
+  if ! jq -e . >/dev/null 2>&1 <<<"$delivery_attachment_files"; then
+    echo "ORDER_DELIVERY_ATTACHMENT_FILES must be valid JSON array" >&2
+    exit 1
+  fi
+  if ! jq -e . >/dev/null 2>&1 <<<"$delivery_attachment_ids"; then
+    echo "ORDER_DELIVERY_ATTACHMENT_IDS must be valid JSON array" >&2
+    exit 1
+  fi
 
-if [[ "$deliver_status" != "200" ]]; then
-  echo "deliver order failed" >&2
-  exit 1
+  if [[ "$(jq 'length' <<<"$delivery_attachment_files")" -gt 0 ]]; then
+    if [[ -n "$FILE_SERVICE_GRPC_ADDRESS" ]]; then
+      log "Uploading delivery files through file-service: ${FILE_SERVICE_GRPC_ADDRESS}"
+    else
+      log "Uploading delivery files through in-cluster file-service"
+    fi
+    delivery_attachment_ids="$(upload_delivery_files "$delivery_attachment_files" "$seller_id" "$order_id")"
+    log "Uploaded delivery file IDs: $delivery_attachment_ids"
+  fi
+
+  deliver_payload="$(
+    jq -nc \
+      --arg message "$delivery_message" \
+      --argjson attachment_ids "$delivery_attachment_ids" \
+      '{
+        delivery_message: $message,
+        attachment_ids: $attachment_ids
+      }'
+  )"
+  log "POST ${API_BASE_URL}/orders/${order_id}/deliver"
+  log "$deliver_payload"
+  deliver_status="$(
+    request_json "$seller_auth_header" POST "${API_BASE_URL}/orders/${order_id}/deliver" "$deliver_payload" "$deliver_body"
+  )"
+  log "HTTP ${deliver_status}"
+  log_json_file "$deliver_body"
+
+  if [[ "$deliver_status" != "200" ]]; then
+    deliver_error="$(jq -r '.error // empty' "$deliver_body" 2>/dev/null || true)"
+    if [[ "$order_complete_mode" == "cancel_after_delivery" && "$deliver_error" == "order not deliverable" ]]; then
+      log "Delivery step is not deliverable; continuing cancel-after-delivery flow in case the order was already delivered."
+    else
+      echo "deliver order failed" >&2
+      exit 1
+    fi
+  fi
+else
+  print_section "Pre-delivery cancel"
+  log "Skipping seller delivery for mode: $order_complete_mode"
 fi
 
-print_section "Buyer accepts delivery"
-accept_payload='{}'
-log "POST ${API_BASE_URL}/orders/${order_id}/accept"
-log "$accept_payload"
-accept_status="$(
-  request_json "$buyer_auth_header" POST "${API_BASE_URL}/orders/${order_id}/accept" "$accept_payload" "$accept_body"
-)"
-log "HTTP ${accept_status}"
-log_json_file "$accept_body"
+print_section "Buyer chooses outcome"
+if [[ "$order_complete_mode" == "cancel_after_delivery" || "$order_complete_mode" == "buyer_cancel" || "$order_complete_mode" == "seller_cancel" ]]; then
+  dispute_actor="Buyer"
+  dispute_auth_header="$buyer_auth_header"
+  if [[ "$order_complete_mode" == "seller_cancel" ]]; then
+    dispute_actor="Seller"
+    dispute_auth_header="$seller_auth_header"
+  fi
 
-if [[ "$accept_status" != "200" ]]; then
-  echo "accept delivery failed" >&2
-  exit 1
+  print_section "${dispute_actor} opens dispute"
+  dispute_payload="$(
+    jq -nc \
+      --arg reason "$dispute_reason" \
+      '{
+        reason: $reason
+      }'
+  )"
+  log "POST ${API_BASE_URL}/orders/${order_id}/dispute"
+  log "$dispute_payload"
+  dispute_status="$(
+    request_json "$dispute_auth_header" POST "${API_BASE_URL}/orders/${order_id}/dispute" "$dispute_payload" "$accept_body"
+  )"
+  log "HTTP ${dispute_status}"
+  log_json_file "$accept_body"
+
+  if [[ "$dispute_status" != "200" ]]; then
+    dispute_error="$(jq -r '.error // empty' "$accept_body" 2>/dev/null || true)"
+    if [[ "$dispute_error" == "order not disputable" ]]; then
+      log "Dispute step is not disputable; continuing cancel flow in case the order is already disputed."
+    else
+      echo "open dispute failed" >&2
+      exit 1
+    fi
+  else
+    log "Waiting for realtime dispute event..."
+    wait_for_realtime_event "dispute" "order.disputed" "order_disputed"
+  fi
+
+  print_section "Admin resolves dispute"
+  resolve_payload="$(
+    jq -nc \
+      --argjson freelancer_percentage "$freelancer_percentage" \
+      --argjson customer_percentage "$customer_percentage" \
+      --arg reason "$dispute_resolution_reason" \
+      '{
+        freelancer_percentage: $freelancer_percentage,
+        customer_percentage: $customer_percentage,
+        reason: $reason
+      }'
+  )"
+  log "POST ${API_BASE_URL}/orders/${order_id}/dispute/resolve"
+  log "$resolve_payload"
+  resolve_status="$(
+    request_json "$admin_auth_header" POST "${API_BASE_URL}/orders/${order_id}/dispute/resolve" "$resolve_payload" "$accept_body"
+  )"
+  log "HTTP ${resolve_status}"
+  log_json_file "$accept_body"
+
+  if [[ "$resolve_status" != "200" ]]; then
+    echo "resolve dispute failed" >&2
+    exit 1
+  fi
+
+  log "Waiting for realtime dispute resolution event..."
+  wait_for_realtime_event "dispute resolution" "order.dispute_resolved" "order_dispute_resolved" "order_completed" "payment.funds_released"
+
+  log_blank
+  log "== Done =="
+  log "Order complete flow finished with admin dispute resolution."
+  log "Order ID: $order_id"
+else
+  accept_payload='{}'
+  log "POST ${API_BASE_URL}/orders/${order_id}/accept"
+  log "$accept_payload"
+  accept_status="$(
+    request_json "$buyer_auth_header" POST "${API_BASE_URL}/orders/${order_id}/accept" "$accept_payload" "$accept_body"
+  )"
+  log "HTTP ${accept_status}"
+  log_json_file "$accept_body"
+
+  if [[ "$accept_status" != "200" ]]; then
+    echo "accept delivery failed" >&2
+    exit 1
+  fi
+
+  log "Waiting for realtime completion event..."
+  wait_for_realtime_event "completion" "order.completed" "order_completed" "payment.funds_released"
+
+  log_blank
+  log "== Done =="
+  log "Order complete flow finished successfully."
+  log "Order ID: $order_id"
 fi
-
-log "Waiting for realtime completion event..."
-wait_for_realtime_event "completion" "order.completed" "order_completed" "payment.funds_released"
-
-log_blank
-log "== Done =="
-log "Order complete flow finished successfully."
-log "Order ID: $order_id"

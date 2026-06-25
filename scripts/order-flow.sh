@@ -2,7 +2,6 @@
 set -euo pipefail
 
 API_BASE_URL="${ORDER_API_BASE_URL:-http://api.ofm.local/v1}"
-REALTIME_WS_URL="${ORDER_REALTIME_WS_URL:-ws://172.21.0.2/ws}"
 REALTIME_WS_HOST="${ORDER_REALTIME_WS_HOST:-realtime.ofm.local}"
 LOG_FILE="${ORDER_LOG_FILE:-order-log.txt}"
 GIG_FLOW_LOG_FILE="${ORDER_GIG_FLOW_LOG_FILE:-gig-log.txt}"
@@ -15,14 +14,38 @@ jwt_secret="${ORDER_JWT_SECRET:-${JWT_ACCESS_SECRET:-local-dev-secret-change-me}
 jwt_ttl_seconds="${ORDER_JWT_TTL_SECONDS:-3600}"
 gig_id="${ORDER_GIG_ID:-}"
 package_id="${ORDER_PACKAGE_ID:-}"
-realtime_connection_id="${ORDER_REALTIME_CONNECTION_ID:-}"
 idempotency_key="${ORDER_IDEMPOTENCY_KEY:-order-${timestamp}}"
 realtime_event_file="$(mktemp)"
-realtime_connection_file="$(mktemp)"
 realtime_listener_pid=""
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${script_dir}/api-gateway-curl.sh"
 ofm_api_gateway_configure "$API_BASE_URL" || true
+
+ofm_realtime_configure() {
+  local base_url="${ORDER_REALTIME_WS_URL:-}"
+  local kubeconfig_path="${OFM_K3D_KUBECONFIG:-$HOME/.kube/k3d-ofm.yaml}"
+  local namespace="${OFM_K3D_NAMESPACE:-ofm}"
+  local realtime_ip=""
+
+  if [[ -n "$base_url" ]]; then
+    REALTIME_WS_URL="$base_url"
+    return 0
+  fi
+
+  if command -v kubectl >/dev/null 2>&1; then
+    realtime_ip="$(
+      kubectl --kubeconfig "$kubeconfig_path" -n "$namespace" get ingress realtime-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true
+    )"
+  fi
+
+  if [[ -z "$realtime_ip" ]]; then
+    realtime_ip="172.23.0.2"
+  fi
+
+  REALTIME_WS_URL="ws://${realtime_ip}/ws"
+}
+
+ofm_realtime_configure
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -56,14 +79,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --package-id=*)
       package_id="${1#*=}"
-      shift
-      ;;
-    --realtime-connection-id)
-      realtime_connection_id="${2:-}"
-      shift 2
-      ;;
-    --realtime-connection-id=*)
-      realtime_connection_id="${1#*=}"
       shift
       ;;
     --idempotency-key)
@@ -222,7 +237,6 @@ request_json() {
         -H 'Content-Type: application/json' \
         -H "$auth_header" \
         -H "Idempotency-Key: $idempotency_key" \
-        -H "X-Realtime-Connection-Id: $realtime_connection_id" \
         -d "$payload" \
         -o "$body_file" \
         -w '%{http_code}' \
@@ -235,7 +249,6 @@ request_json() {
         -X "$method" \
         -H "$auth_header" \
         -H "Idempotency-Key: $idempotency_key" \
-        -H "X-Realtime-Connection-Id: $realtime_connection_id" \
         -o "$body_file" \
         -w '%{http_code}' \
         "$url"
@@ -255,7 +268,7 @@ require_command jq
 require_command python3
 
 start_realtime_listener() {
-  python3 -u - "$REALTIME_WS_URL" "$REALTIME_WS_HOST" "$access_token" "$realtime_connection_file" "$realtime_event_file" <<'PY' >>"$LOG_FILE" 2>&1 &
+  python3 -u - "$REALTIME_WS_URL" "$REALTIME_WS_HOST" "$access_token" "$realtime_event_file" <<'PY' >>"$LOG_FILE" 2>&1 &
 import base64
 import hashlib
 import json
@@ -266,7 +279,7 @@ import struct
 import sys
 import urllib.parse
 
-ws_url, host_header, token, connection_file, event_file = sys.argv[1:6]
+ws_url, host_header, token, event_file = sys.argv[1:5]
 
 def fail(msg):
     print(msg, file=sys.stderr)
@@ -367,7 +380,6 @@ def read_frame(initial=b""):
     return opcode, payload, data[length:]
 
 buffer = remainder
-connection_id = None
 while True:
     if len(buffer) < 2:
         buffer += recv_exact(2 - len(buffer))
@@ -384,11 +396,6 @@ while True:
         print(payload.decode(errors="replace"))
         continue
     print(json.dumps(message), flush=True)
-    if message.get("type") == "connection.ready" and not connection_id:
-        connection_id = message.get("connection_id", "")
-        with open(connection_file, "w", encoding="utf-8") as fh:
-            fh.write(connection_id)
-            fh.flush()
     event_type = message.get("type", "") or message.get("kind", "")
     if event_type in {"order.funded", "order_confirmed", "order_failed", "order.payment_failed", "payment.order_payment_succeeded", "payment.order_payment_failed"}:
         with open(event_file, "w", encoding="utf-8") as fh:
@@ -397,19 +404,6 @@ while True:
         break
 PY
   realtime_listener_pid=$!
-
-  for _ in {1..20}; do
-    if [[ -s "$realtime_connection_file" ]]; then
-      realtime_connection_id="$(cat "$realtime_connection_file")"
-      break
-    fi
-    sleep 1
-  done
-
-  if [[ -z "${realtime_connection_id}" ]]; then
-    echo "failed to obtain realtime connection id" >&2
-    exit 1
-  fi
 }
 
 stop_realtime_listener() {
@@ -417,7 +411,7 @@ stop_realtime_listener() {
     kill "${realtime_listener_pid}" >/dev/null 2>&1 || true
     wait "${realtime_listener_pid}" >/dev/null 2>&1 || true
   fi
-  rm -f "$realtime_event_file" "$realtime_connection_file"
+  rm -f "$realtime_event_file"
 }
 
 trap stop_realtime_listener EXIT
@@ -438,14 +432,9 @@ log "Gig ID: $gig_id"
 log "Package ID: $package_id"
 log "Idempotency key: $idempotency_key"
 
-if [[ -z "${realtime_connection_id}" ]]; then
-  print_section "Realtime handshake"
-  log "Connecting to realtime service: ${REALTIME_WS_URL}"
-  start_realtime_listener
-  log "Realtime connection ID: ${realtime_connection_id}"
-else
-  log "Realtime connection ID: ${realtime_connection_id}"
-fi
+print_section "Realtime handshake"
+log "Connecting to realtime service: ${REALTIME_WS_URL}"
+start_realtime_listener
 
 print_section "Start order"
 start_payload="$(
@@ -533,10 +522,8 @@ print_section "Confirm order"
 confirm_payload="$(
   jq -nc \
     --arg order_id "$order_id" \
-    --arg realtime_connection_id "$realtime_connection_id" \
     '{
-      order_id: $order_id,
-      realtime_connection_id: $realtime_connection_id
+      order_id: $order_id
     }'
 )"
 log "POST ${API_BASE_URL}/orders/${order_id}/confirm"
