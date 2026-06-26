@@ -17,6 +17,8 @@
   value: gig-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9503
 - name: USER_SERVICE_ADDRESS
   value: user-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9502
+- name: CHAT_SERVICE_ADDRESS
+  value: chat-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9512
 - name: PAYMENT_SERVICE_ADDRESS
   value: payment-service.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9506
 - name: ORDER_SERVICE_ADDRESS

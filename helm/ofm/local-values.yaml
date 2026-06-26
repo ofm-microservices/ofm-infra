@@ -31,6 +31,9 @@ services:
     enabled: true
   file-service:
     enabled: true
+  chat-service:
+    enabled: true
+    scyllaPort: 9043
   payment-service:
     enabled: true
     ingress:

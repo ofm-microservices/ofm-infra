@@ -8,7 +8,7 @@ global:
     clientPort: 4222
     monitorPort: 8222
   linkerd:
-    skipOutboundPorts: "4222,5433,5434,5435,5436,5437,6379,6380,6381,6382,9006,9007,9042,9043,9044,9200"
+    skipOutboundPorts: "4222,5433,5434,5435,5436,5437,6379,6380,6381,6382,9006,9007,9042,9043,9044,9045,9200"
   vector:
     enabled: false
     configRevision: "1"
@@ -131,6 +131,20 @@ services:
       host: file.ofm.local
       path: /
       grpc: true
+
+  chat-service:
+    enabled: true
+    image: ofm/chat-service:k3s
+    replicaCount: 1
+    ports:
+      - name: grpc
+        containerPort: 9512
+        servicePort: 9512
+        protocol: TCP
+      - name: metrics
+        containerPort: 9613
+        servicePort: 9613
+        protocol: TCP
 
   payment-service:
     enabled: true

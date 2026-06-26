@@ -38,6 +38,9 @@ data:
       - job_name: file-service
         static_configs:
           - targets: ["file-service:9604"]
+      - job_name: chat-service
+        static_configs:
+          - targets: ["chat-service:9613"]
       - job_name: payment-service
         static_configs:
           - targets: ["payment-service:9609"]

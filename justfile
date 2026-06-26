@@ -1,7 +1,7 @@
 set shell := ["zsh", "-cu"]
 set dotenv-load := true
 
-compose := "docker compose -f docker-compose.nats.yaml -f docker-compose.user-service.yaml -f docker-compose.auth-service.yaml -f docker-compose.gig-service.yaml -f docker-compose.registration-saga-service.yaml -f docker-compose.order-saga-service.yaml -f docker-compose.order-service.yaml -f docker-compose.payment-service.yaml -f docker-compose.review-service.yaml -f docker-compose.search-service.yaml -f docker-compose.file-service.yaml"
+compose := "docker compose -f docker-compose.nats.yaml -f docker-compose.user-service.yaml -f docker-compose.auth-service.yaml -f docker-compose.gig-service.yaml -f docker-compose.registration-saga-service.yaml -f docker-compose.order-saga-service.yaml -f docker-compose.order-service.yaml -f docker-compose.payment-service.yaml -f docker-compose.review-service.yaml -f docker-compose.search-service.yaml -f docker-compose.file-service.yaml -f docker-compose.chat-service.yaml"
 asyncapi_compose := "docker compose -f docker-compose.asyncapi.yaml"
 swagger_compose := "docker compose -f docker-compose.swagger.yaml"
 grpc_docs_compose := "docker compose -f docker-compose.grpc-docs.yaml"
@@ -37,6 +37,18 @@ file-service-logs:
 file-service-ps:
     {{compose}} ps file-service-scylla file-service-rustfs
 
+chat-service-up:
+    {{compose}} up -d chat-service-scylla chat-service-scylla-init
+
+chat-service-down:
+    {{compose}} stop chat-service-scylla
+
+chat-service-logs:
+    {{compose}} logs -f chat-service-scylla
+
+chat-service-ps:
+    {{compose}} ps chat-service-scylla
+
 file-service-port-forward:
     source ./scripts/file-service-port-forward.sh && ofm_file_service_port_forward_start
 
@@ -66,6 +78,9 @@ order-complete-flow *args:
 
 review-flow *args:
     bash ./scripts/review-flow.sh {{args}}
+
+chat-flow *args:
+    bash ./scripts/chat-flow.sh {{args}}
 
 order-infra-up:
     bash ./scripts/order-infra-up.sh

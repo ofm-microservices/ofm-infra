@@ -36,6 +36,7 @@ if [[ "$target_service" == "all" || "$target_service" == "user-service" ]]; then
 if [[ "$target_service" == "all" || "$target_service" == "registration-saga-service" ]]; then build_image "registration-saga-service" "ofm-registration-saga-service/Dockerfile" "ofm/registration-saga-service:${image_tag}"; fi
 if [[ "$target_service" == "all" || "$target_service" == "gig-service" ]]; then build_image "gig-service" "ofm-gig-service/Dockerfile" "ofm/gig-service:${image_tag}"; fi
 if [[ "$target_service" == "all" || "$target_service" == "file-service" ]]; then build_image "file-service" "ofm-file-service/Dockerfile" "ofm/file-service:${image_tag}"; fi
+if [[ "$target_service" == "all" || "$target_service" == "chat-service" ]]; then build_image "chat-service" "ofm-chat-service/Dockerfile" "ofm/chat-service:${image_tag}"; fi
 if [[ "$target_service" == "all" || "$target_service" == "payment-service" ]]; then build_image "payment-service" "ofm-payment-service/Dockerfile" "ofm/payment-service:${image_tag}"; fi
 if [[ "$target_service" == "all" || "$target_service" == "order-service" ]]; then build_image "order-service" "ofm-order-service/Dockerfile" "ofm/order-service:${image_tag}"; fi
 if [[ "$target_service" == "all" || "$target_service" == "order-saga-service" ]]; then build_image "order-saga-service" "ofm-order-saga-service/Dockerfile" "ofm/order-saga-service:${image_tag}"; fi

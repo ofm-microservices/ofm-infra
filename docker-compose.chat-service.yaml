@@ -1,0 +1,48 @@
+name: ofm-infra
+
+services:
+  chat-service-scylla:
+    image: scylladb/scylla:2025.4
+    container_name: ofm-chat-service-scylla
+    restart: unless-stopped
+    mem_limit: 2g
+    cpus: "2.00"
+    command:
+      - "--smp"
+      - "1"
+      - "--memory"
+      - "512M"
+      - "--overprovisioned"
+      - "1"
+      - "--api-address"
+      - "0.0.0.0"
+      - "--authenticator"
+      - "PasswordAuthenticator"
+      - "--authorizer"
+      - "CassandraAuthorizer"
+    ports:
+      - "9045:9042"
+    volumes:
+      - chat_service_scylla_data:/var/lib/scylla
+
+  chat-service-scylla-init:
+    image: scylladb/scylla:2025.4
+    container_name: ofm-chat-service-scylla-init
+    depends_on:
+      chat-service-scylla:
+        condition: service_started
+    restart: "no"
+    mem_limit: 256m
+    cpus: "0.25"
+    entrypoint:
+      - "/bin/bash"
+      - "-lc"
+    command:
+      - |
+        until cqlsh chat-service-scylla 9042 -u cassandra -p cassandra -e "DESCRIBE KEYSPACES" >/dev/null 2>&1; do
+          sleep 2
+        done
+        cqlsh chat-service-scylla 9042 -u cassandra -p cassandra -e "CREATE ROLE IF NOT EXISTS admin WITH PASSWORD = 'admin' AND LOGIN = true AND SUPERUSER = true;"
+
+volumes:
+  chat_service_scylla_data:
