@@ -7,6 +7,10 @@
   value: local
 - name: APP_LOG_LEVEL
   value: info
+- name: KAFKA_BROKERS
+  value: {{ include "ofm.kafkaHost" . }}:9092
+- name: KAFKA_CHAT_GROUP_ID
+  value: chat-service
 - name: GRPC_HOST
   value: 0.0.0.0
 - name: GRPC_PORT

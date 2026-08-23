@@ -34,38 +34,18 @@
   value: ""
 - name: REDIS_DB
   value: "0"
-- name: NATS_URL
-  value: nats://{{ include "ofm.natsHost" . }}:4222
-- name: NATS_USER
-  value: ""
-- name: NATS_PASSWORD
-  value: ""
-- name: NATS_STREAM_PAYMENT_COMMANDS
-  value: PAYMENT_COMMANDS
-- name: NATS_STREAM_PAYMENT_EVENTS
-  value: PAYMENT_EVENTS
-- name: NATS_SUBJECT_PAYMENT_INTENT
+- name: KAFKA_BROKERS
+  value: {{ include "ofm.kafkaHost" . }}:9092
+- name: KAFKA_PAYMENT_GROUP_ID
+  value: payment-service
+- name: KAFKA_PAYMENT_INTENT_TOPIC
   value: payment.intent
-- name: NATS_SUBJECT_PAYMENT_INTENT_RESULT
-  value: payment.intent.result
-- name: NATS_SUBJECT_PAYMENT_PROJECTION
+- name: KAFKA_PAYMENT_PROJECTION_TOPIC
   value: payment.projection
-- name: NATS_SUBJECT_PAYMENT_WEBHOOK
-  value: payment.webhook
-- name: NATS_SUBJECT_PAYMENT_STATUS
-  value: payment.status
-- name: NATS_SUBJECT_PAYMENT_COMPLETED
-  value: payment.completed
-- name: NATS_SUBJECT_PAYMENT_FAILED
-  value: payment.failed
-- name: NATS_SUBJECT_PAYMENT_COMPENSATION
-  value: payment.compensation
-- name: NATS_COMMAND_BATCH_SIZE
-  value: "32"
-- name: NATS_COMMAND_MAX_WAIT
-  value: 10ms
 - name: STRIPE_SECRET_KEY
   value: {{ default "" $paymentSecrets.stripeSecretKey }}
+- name: STRIPE_FAKE_ENABLED
+  value: {{ default false $stripe.fakeEnabled | quote }}
 - name: STRIPE_PAYMENT_WEBHOOK_SECRET
   value: {{ default "" $paymentSecrets.checkoutWebhookSecret }}
 - name: STRIPE_FREELANCER_ONBOARDING_WEBHOOK_SECRET

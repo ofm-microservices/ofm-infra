@@ -17,6 +17,11 @@ scrape_configs:
     static_configs:
       - targets: ["otel-collector:8888"]
 
+  - job_name: load-test-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["load-test-service:8080"]
+
   - job_name: api-gateway
     metrics_path: /metrics
     static_configs:

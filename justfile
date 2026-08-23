@@ -1,14 +1,14 @@
 set shell := ["zsh", "-cu"]
 set dotenv-load := true
 
-compose := "docker compose -f docker-compose.nats.yaml -f docker-compose.user-service.yaml -f docker-compose.auth-service.yaml -f docker-compose.gig-service.yaml -f docker-compose.registration-saga-service.yaml -f docker-compose.order-saga-service.yaml -f docker-compose.order-service.yaml -f docker-compose.payment-service.yaml -f docker-compose.review-service.yaml -f docker-compose.search-service.yaml -f docker-compose.file-service.yaml -f docker-compose.chat-service.yaml"
+compose := "docker compose -f docker-compose.nats.yaml -f docker-compose.user-service.yaml -f docker-compose.auth-service.yaml -f docker-compose.gig-service.yaml -f docker-compose.registration-saga-service.yaml -f docker-compose.order-saga-service.yaml -f docker-compose.order-service.yaml -f docker-compose.payment-service.yaml -f docker-compose.review-service.yaml -f docker-compose.search-service.yaml -f docker-compose.file-service.yaml -f docker-compose.chat-service.yaml -f docker-compose.migration.yaml"
 asyncapi_compose := "docker compose -f docker-compose.asyncapi.yaml"
 swagger_compose := "docker compose -f docker-compose.swagger.yaml"
 grpc_docs_compose := "docker compose -f docker-compose.grpc-docs.yaml"
 sonarqube_compose := "docker compose -f docker-compose.sonarqube.yaml"
 
 infra-up:
-    {{compose}} up -d --remove-orphans
+    {{compose}} up -d --force-recreate --remove-orphans
     bash ./scripts/infra-up.sh
 
 infra-all:

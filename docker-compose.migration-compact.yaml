@@ -1,0 +1,91 @@
+name: ofm-infra
+
+# Resource-constrained migration runtime.  One Kafka Connect/Debezium worker
+# hosts the source connectors and one bridge consumes all CDC topics.
+services:
+  migration-debezium:
+    image: quay.io/yugabyte/debezium-connector:latest
+    container_name: ofm-migration-debezium
+    restart: unless-stopped
+    mem_limit: 768m
+    cpus: "1.00"
+    environment:
+      KAFKA_HEAP_OPTS: -Xms128m -Xmx512m
+      KAFKA_OPTS: -Djava.awt.headless=true
+      KAFKA_BROKERS: kafka:9092
+      CONNECT_REST_PORT: 8083
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8083/ >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - ./migration/debezium-server/application.properties:/opt/kafka/config/connect-standalone.properties:ro
+      - ./migration/debezium-server:/opt/kafka/config/ofm-connectors:ro
+      - migration_debezium_data:/opt/kafka/data
+      - ./migration/debezium-server/distributed.properties:/opt/kafka/config/distributed.properties:ro
+      - ./migration/debezium-server/register-connectors.sh:/opt/kafka/config/register-connectors.sh:ro
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        cp -rn /opt/kafka/config.orig/* /opt/kafka/config/ || true
+        /opt/kafka/bin/connect-distributed.sh /opt/kafka/config/distributed.properties &
+        worker=$$!
+        sh /opt/kafka/config/register-connectors.sh
+        wait $$worker
+
+  migration-bridge:
+    build:
+      context: ..
+      dockerfile: ofm-migration-bridge/Dockerfile
+    container_name: ofm-migration-bridge
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.50"
+    environment:
+      MIGRATION_KAFKA_BROKERS: kafka:9092
+      MIGRATION_KAFKA_SOURCE_TOPICS: cdc.auth.public.outbox_events,cdc.user.public.outbox_events,cdc.gig.public.outbox_events,cdc.order.public.outbox_events,cdc.payment.public.outbox_events,cdc.review.public.outbox_events
+      MIGRATION_KAFKA_CONSUMER_GROUP: migration-bridge-all
+      MIGRATION_SCHEMA_REGISTRY_URL: http://migration-schema-registry:8080/apis/registry/v3
+    depends_on:
+      - migration-schema-registry
+
+  migration-scylla-cdc:
+    build:
+      context: ./migration/scylla-cdc
+    container_name: ofm-migration-scylla-cdc
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: "0.75"
+    environment:
+      KAFKA_HEAP_OPTS: -Xms64m -Xmx256m
+      KAFKA_OPTS: -Djava.awt.headless=true
+    volumes:
+      - migration_scylla_cdc_data:/opt/kafka/data
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        /opt/kafka/bin/connect-distributed.sh /opt/kafka/config/distributed.properties &
+        worker=$$!
+        sh /opt/kafka/config/register-connectors.sh
+        wait $$worker
+
+  migration-scylla-bridge:
+    build:
+      context: ..
+      dockerfile: ofm-migration-bridge/Dockerfile
+    container_name: ofm-migration-scylla-bridge
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: "0.25"
+    environment:
+      MIGRATION_KAFKA_BROKERS: kafka:9092
+      MIGRATION_KAFKA_SOURCE_TOPICS: migration-chat.chat_service.chats_by_order,migration-chat.chat_service.chat_messages_by_order,migration-chat.chat_service.chat_messages_by_id,migration-file.file_service.files,migration-order-saga.order_saga.order_saga_sessions,migration-order-saga.order_saga.order_saga_steps,migration-registration-saga.registration_saga_service.registration_sessions,migration-registration-saga.registration_saga_service.registration_sessions_by_email,migration-registration-saga.registration_saga_service.registration_sessions_by_username,migration-registration-saga.registration_saga_service.registration_steps
+      MIGRATION_KAFKA_CONSUMER_GROUP: migration-bridge-scylla-all
+      MIGRATION_SCHEMA_REGISTRY_URL: http://migration-schema-registry:8080/apis/registry/v3
+    depends_on:
+      - migration-schema-registry
+
+volumes:
+  migration_debezium_data:
+  migration_scylla_cdc_data:

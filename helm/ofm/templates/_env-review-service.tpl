@@ -19,11 +19,15 @@
 - name: REDIS_HOST
   value: {{ $host }}
 - name: REDIS_PORT
-  value: "6383"
+  value: "6384"
 - name: REDIS_PASSWORD
   value: ""
 - name: REDIS_DB
   value: "0"
+- name: KAFKA_BROKERS
+  value: {{ include "ofm.kafkaHost" . }}:9092
+- name: KAFKA_REVIEW_GROUP_ID
+  value: review-service
 - name: NATS_URL
   value: nats://{{ include "ofm.natsHost" . }}:4222
 - name: NATS_USER

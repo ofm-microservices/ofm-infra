@@ -52,3 +52,7 @@ volumes:
     name: infra_user_service_yugabyte_disk0
   user_service_yugabyte_disk1:
     name: infra_user_service_yugabyte_disk1
+
+networks:
+  default:
+    name: ofm-infra_default

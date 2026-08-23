@@ -6,6 +6,10 @@
   value: local
 - name: LOG_LEVEL
   value: info
+- name: KAFKA_BROKERS
+  value: {{ include "ofm.kafkaHost" . }}:9092
+- name: KAFKA_ORDER_SAGA_GROUP_ID
+  value: order-saga-service
 - name: NATS_URL
   value: nats://{{ include "ofm.natsHost" . }}:4222
 - name: NATS_USER

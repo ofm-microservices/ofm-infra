@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "user.profile.deactivated.v1",
+  "type": "object",
+  "required": ["event_id", "event_type", "schema_version", "aggregate_type", "aggregate_id", "source_service", "occurred_at", "payload"],
+  "properties": {
+    "event_id": {"type": "string", "format": "uuid"},
+    "event_type": {"const": "user.profile.deactivated"},
+    "schema_version": {"const": 1},
+    "aggregate_type": {"const": "user"},
+    "aggregate_id": {"type": "string", "format": "uuid"},
+    "source_service": {"const": "user-service"},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "payload": {"type": "object", "required": ["user_id", "active"], "additionalProperties": true}
+  },
+  "additionalProperties": false
+}

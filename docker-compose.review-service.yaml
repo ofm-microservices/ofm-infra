@@ -8,7 +8,7 @@ services:
     mem_limit: 256m
     cpus: "0.50"
     ports:
-      - "6383:6379"
+      - "6384:6379"
     volumes:
       - review_service_redis_data:/data
 
@@ -48,3 +48,7 @@ volumes:
   review_service_yugabyte_data:
   review_service_yugabyte_disk0:
   review_service_yugabyte_disk1:
+
+networks:
+  default:
+    name: ofm-infra_default

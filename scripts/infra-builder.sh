@@ -22,6 +22,9 @@ infra::wait_exited() {
   local status
   while true; do
     status="$(docker inspect -f '{{.State.Status}}' "${container_name}" 2>/dev/null || true)"
+    if [[ -z "${status}" ]]; then
+      return 0
+    fi
     if [[ "${status}" == "exited" ]]; then
       return 0
     fi

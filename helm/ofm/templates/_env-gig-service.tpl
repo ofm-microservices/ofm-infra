@@ -22,6 +22,12 @@
   value: ""
 - name: REDIS_DB
   value: "0"
+- name: KAFKA_BROKERS
+  value: {{ include "ofm.kafkaHost" . }}:9092
+- name: KAFKA_GIG_GROUP_ID
+  value: gig-service
+- name: KAFKA_GIG_DLQ_TOPIC
+  value: gig-service.dead-letter
 - name: NATS_URL
   value: nats://{{ include "ofm.natsHost" . }}:4222
 - name: NATS_USER

@@ -1,0 +1,50 @@
+name: ofm-infra
+
+services:
+  migration-redis:
+    image: redis:8-alpine
+    container_name: ofm-migration-redis
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: "0.25"
+    ports:
+      - "6387:6379"
+    volumes:
+      - migration_redis_data:/data
+
+  kafka:
+    image: apache/kafka:3.9.0
+    container_name: ofm-migration-kafka
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      # k3d workloads connect through the Docker host bridge, not the
+      # compose-only `kafka` DNS name.
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://172.22.0.1:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+    ports:
+      - "9092:9092"
+
+  migration-schema-registry:
+    image: apicurio/apicurio-registry:3.1.2
+    container_name: ofm-migration-schema-registry
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: "0.50"
+    environment:
+      QUARKUS_HTTP_PORT: 8080
+    depends_on: [kafka]
+    ports:
+      - "8084:8080"
+
+volumes:
+  migration_redis_data:

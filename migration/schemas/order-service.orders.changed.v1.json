@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "order-service.orders.changed.v1",
+  "type": "object",
+  "required": ["event_id", "event_type", "schema_version", "aggregate_type", "aggregate_id", "source_service", "occurred_at", "payload"],
+  "properties": {
+    "event_id": {"type": "string", "format": "uuid"},
+    "event_type": {"const": "order-service.orders.changed"},
+    "schema_version": {"const": 1},
+    "aggregate_type": {"const": "orders"},
+    "aggregate_id": {"type": "string"},
+    "source_service": {"const": "order-service"},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "payload": {"type": "object", "additionalProperties": true}
+  },
+  "additionalProperties": false
+}

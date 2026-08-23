@@ -20,6 +20,9 @@ data:
       - job_name: otel-collector
         static_configs:
           - targets: ["otel-collector:8888"]
+      - job_name: monolith
+        static_configs:
+          - targets: ["monolith:9600"]
       - job_name: api-gateway
         static_configs:
           - targets: ["api-gateway:9606"]
@@ -59,6 +62,28 @@ data:
       - job_name: search-service
         static_configs:
           - targets: ["search-service:9612"]
+      - job_name: node-exporter
+        static_configs:
+          - targets: ["node-exporter:9100"]
+      - job_name: kube-state-metrics
+        static_configs:
+          - targets: ["kube-state-metrics:8080"]
+      - job_name: kubelet-cadvisor
+        kubernetes_sd_configs:
+          - role: node
+        scheme: https
+        metrics_path: /metrics/cadvisor
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        tls_config:
+          insecure_skip_verify: true
+        relabel_configs:
+          - action: replace
+            target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - action: replace
+            source_labels: [__meta_kubernetes_node_name]
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -134,6 +159,12 @@ data:
       batch:
         timeout: 1s
         send_batch_size: 512
+      transform/run-context:
+        trace_statements:
+          - context: span
+            statements:
+              - set(resource.attributes["test.run_id"], attributes["ofm.test_run_id"]) where attributes["ofm.test_run_id"] != nil
+              - set(resource.attributes["test.scenario_id"], attributes["ofm.scenario_id"]) where attributes["ofm.scenario_id"] != nil
 
     exporters:
       otlp/tempo:
@@ -148,7 +179,7 @@ data:
       pipelines:
         traces:
           receivers: [otlp]
-          processors: [batch]
+          processors: [transform/run-context, batch]
           exporters: [otlp/tempo]
 ---
 apiVersion: v1
@@ -313,6 +344,18 @@ data:
 {{ .Files.Get "files/grafana-dashboards/ofm-metrics-overview.json" | indent 4 }}
   ofm-traces-overview.json: |
 {{ .Files.Get "files/grafana-dashboards/ofm-traces-overview.json" | indent 4 }}
+  ofm-load-testing.json: |
+{{ .Files.Get "files/grafana-dashboards/ofm-load-testing.json" | indent 4 }}
+  ofm-microservices-run.json: |
+{{ .Files.Get "files/grafana-dashboards/ofm-microservices-run.json" | indent 4 }}
+  ofm-monolith-run.json: |
+{{ .Files.Get "files/grafana-dashboards/ofm-monolith-run.json" | indent 4 }}
+  ofm-kafka-projection.json: |
+{{ .Files.Get "files/grafana-dashboards/ofm-kafka-projection.json" | indent 4 }}
+  ofm-comparison.json: |
+{{ .Files.Get "files/grafana-dashboards/ofm-comparison.json" | indent 4 }}
+  ofm-load-control.json: |
+{{ .Files.Get "files/grafana-dashboards/ofm-load-control.json" | indent 4 }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -333,6 +376,7 @@ spec:
       annotations:
         linkerd.io/inject: disabled
     spec:
+      serviceAccountName: prometheus
       containers:
         - name: prometheus
           image: {{ .Values.global.observability.prometheus.image }}
@@ -355,7 +399,8 @@ spec:
           configMap:
             name: ofm-prometheus-config
         - name: data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: prometheus-data
 ---
 apiVersion: v1
 kind: Service
@@ -582,6 +627,16 @@ metadata:
 spec:
   rules:
     - host: grafana.ofm.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000
+    - host: grafana.localhost
       http:
         paths:
           - path: /

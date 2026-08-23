@@ -1,0 +1,41 @@
+{{- if .Values.migrationFailureRelay.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: migration-failure-relay
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "ofm.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.migrationFailureRelay.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: migration-failure-relay
+        spec:
+          restartPolicy: OnFailure
+          hostAliases:
+            - ip: {{ include "ofm.externalHost" . | quote }}
+              hostnames: [host.k3d.internal, kafka]
+          containers:
+            - name: migration-failure-relay
+              image: {{ .Values.migrationFailureRelay.image }}
+              imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+              env:
+                - name: MIGRATION_RELAY_FAILURES
+                  value: "true"
+                - name: MIGRATION_KAFKA_BROKERS
+                  value: kafka:9092
+                - name: MIGRATION_DEAD_LETTER_TOPIC
+                  value: migration.dead-letter
+                - name: MIGRATION_REPLAY_LIMIT
+                  value: {{ .Values.migrationFailureRelay.batchLimit | quote }}
+                - name: MIGRATION_FAILURE_DATABASE_URL
+                  value: {{ printf "postgres://admin:admin@%s:%d/%s?sslmode=disable" (include "ofm.externalHost" .) (int .Values.migrationFailureRelay.databasePort) .Values.migrationFailureRelay.databaseName | quote }}
+{{- end }}

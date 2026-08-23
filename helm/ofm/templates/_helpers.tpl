@@ -14,6 +14,10 @@
 {{- default (include "ofm.externalHost" .) .Values.global.natsHost -}}
 {{- end -}}
 
+{{- define "ofm.kafkaHost" -}}
+{{- default (include "ofm.externalHost" .) .Values.global.kafkaHost -}}
+{{- end -}}
+
 {{- define "ofm.labels" -}}
 app.kubernetes.io/name: ofm
 app.kubernetes.io/instance: {{ .Release.Name }}

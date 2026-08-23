@@ -13,14 +13,29 @@ services_to_manage=(user-service review-service search-service)
 kubectl_cmd=(kubectl --kubeconfig "$kubeconfig")
 helm_cmd=(helm --kubeconfig "$kubeconfig")
 
-host_ip="${OFM_K3D_EXTERNAL_HOST:-}"
-if [[ -z "$host_ip" ]]; then
-    host_ip="$(ip route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}' || true)"
-fi
-if [[ -z "$host_ip" ]]; then
-    echo "failed to resolve host ip for k3d host alias" >&2
-    exit 1
-fi
+resolve_host_ip() {
+    local resolved="${OFM_K3D_EXTERNAL_HOST:-}"
+    if [[ -n "$resolved" ]]; then
+        printf '%s\n' "$resolved"
+        return 0
+    fi
+
+    resolved="$(docker network inspect "k3d-$cluster" --format '{{(index .IPAM.Config 0).Gateway}}' 2>/dev/null || true)"
+    if [[ -n "$resolved" ]]; then
+        printf '%s\n' "$resolved"
+        return 0
+    fi
+
+    resolved="$(ip route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}' || true)"
+    if [[ -n "$resolved" ]]; then
+        printf '%s\n' "$resolved"
+        return 0
+    fi
+
+    printf '%s\n' "172.19.0.1"
+}
+
+host_ip="$(resolve_host_ip)"
 
 if ! command -v k3d >/dev/null 2>&1; then
     echo "k3d is not installed" >&2
@@ -75,6 +90,7 @@ done
     -f "$chart_dir/common-values.yaml" \
     -f "$chart_dir/local-values.yaml" \
     -f "$chart_dir/local-secrets.yaml" \
+    --set global.externalHost="$host_ip" \
     --set global.imagePullPolicy=IfNotPresent
 
 for svc in "${services_to_manage[@]}"; do

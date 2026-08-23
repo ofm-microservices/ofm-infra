@@ -11,7 +11,10 @@ metadata:
 spec:
   replicas: {{ $svc.replicaCount | default 1 }}
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
   selector:
     matchLabels:
       app.kubernetes.io/component: {{ $name }}
@@ -34,6 +37,7 @@ spec:
         - ip: {{ include "ofm.externalHost" $ | quote }}
           hostnames:
             - host.k3d.internal
+            - kafka
       tolerations:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
@@ -53,12 +57,30 @@ spec:
             {{- end }}
           resources:
             requests:
-              cpu: 50m
-              memory: 128Mi
+              cpu: {{ if eq $name "registration-saga-service" }}100m{{ else }}50m{{ end }}
+              memory: {{ if eq $name "registration-saga-service" }}256Mi{{ else }}128Mi{{ end }}
             limits:
-              cpu: 500m
-              memory: 256Mi
+              cpu: {{ if eq $name "registration-saga-service" }}1000m{{ else }}500m{{ end }}
+              memory: {{ if eq $name "registration-saga-service" }}512Mi{{ else }}256Mi{{ end }}
           env:
+            - name: RETRY_ENABLED
+              value: "true"
+            - name: RETRY_MAX_ATTEMPTS
+              value: "5"
+            - name: RETRY_INITIAL_BACKOFF
+              value: 100ms
+            - name: RETRY_MAX_BACKOFF
+              value: 30s
+            - name: DLQ_ENABLED
+              value: "true"
+            - name: CIRCUIT_BREAKER_ENABLED
+              value: "true"
+            - name: CIRCUIT_BREAKER_FAILURE_THRESHOLD
+              value: "5"
+            - name: CIRCUIT_BREAKER_RESET_TIMEOUT
+              value: 30s
+            - name: CIRCUIT_BREAKER_CALL_TIMEOUT
+              value: 15s
             {{- include "ofm.serviceEnv" (dict "serviceName" $name "Values" $.Values "Release" $.Release) | nindent 12 }}
 ---
 {{- end }}

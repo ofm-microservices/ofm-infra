@@ -1,8 +1,11 @@
 global:
   namespace: ofm
   clusterDomain: cluster.local
-  externalHost: 172.21.0.1
+  externalHost: 172.22.0.1
   natsHost: host.k3d.internal
+  # Use the Docker host bridge explicitly so Kafka metadata never resolves to
+  # the compose-only `kafka` name from inside k3d.
+  kafkaHost: 172.22.0.1
   vector:
     enabled: true
     configRevision: "7"
@@ -19,6 +22,12 @@ _secrets:
   mail: {}
 
 services:
+  monolith:
+    enabled: true
+    ingress:
+      enabled: true
+      host: monolith.ofm.local
+      path: /
   api-gateway:
     enabled: true
   auth-service:
@@ -33,13 +42,17 @@ services:
     enabled: true
   chat-service:
     enabled: true
-    scyllaPort: 9043
+    scyllaPort: 9045
   payment-service:
     enabled: true
     ingress:
       enabled: true
       host: payment.ofm.local
       path: /
+    stripe:
+      fakeEnabled: true
+      connectReturnURL: https://helene-unrealistic-thad.ngrok-free.dev/v1/freelancer/onboarding/return
+      connectRefreshURL: https://helene-unrealistic-thad.ngrok-free.dev/v1/freelancer/onboarding/refresh
   review-service:
     enabled: true
   order-service:

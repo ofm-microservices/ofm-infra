@@ -1,8 +1,16 @@
 {{- define "ofm.serviceEnv.realtime-service" -}}
 - name: APP_ENV
   value: local
-- name: NATS_URL
-  value: nats://{{ include "ofm.natsHost" . }}:4222
+- name: KAFKA_BROKERS
+  value: {{ include "ofm.kafkaHost" . }}:9092
+- name: KAFKA_REALTIME_GROUP_ID
+  value: realtime-service
+- name: REDIS_HOST
+  value: {{ include "ofm.externalHost" . }}
+- name: REDIS_PORT
+  value: "6386"
+- name: REDIS_DB
+  value: "0"
 - name: JWT_ACCESS_SECRET
   value: aa96fae1a6eee39b879dad6b6bb372e63278257bf9f94010bc7d25693f61e38c
 - name: HTTP_HOST

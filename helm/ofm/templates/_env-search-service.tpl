@@ -10,18 +10,12 @@
   value: http://{{ $host }}:9200
 - name: ELASTICSEARCH_INDEX
   value: gigs
-- name: NATS_URL
-  value: nats://{{ include "ofm.natsHost" . }}:4222
-- name: NATS_USER
-  value: ""
-- name: NATS_PASSWORD
-  value: ""
-- name: NATS_SUBJECT_GIG_PUBLISHED
-  value: gig.published
-- name: NATS_SUBJECT_GIG_DELETED
-  value: gig.deleted
-- name: NATS_SUBJECT_SEARCH_GIG_INDEXED
-  value: search.gig.indexed
+- name: KAFKA_BROKERS
+  value: {{ include "ofm.kafkaHost" . }}:9092
+- name: KAFKA_GIG_EVENTS_TOPIC
+  value: migration.gig-service.gigs.changed
+- name: KAFKA_SEARCH_GROUP_ID
+  value: search-service
 - name: GRPC_HOST
   value: 0.0.0.0
 - name: GRPC_PORT

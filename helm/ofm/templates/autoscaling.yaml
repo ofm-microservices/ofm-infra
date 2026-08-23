@@ -1,0 +1,54 @@
+{{- if .Values.global.autoscaling.enabled }}
+{{- range $name, $svc := .Values.services }}
+{{- $scale := default (dict) $svc.autoscaling }}
+{{- if and $svc.enabled (or (not (hasKey $scale "enabled")) $scale.enabled) }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Values.global.namespace }}
+  labels:
+    app.kubernetes.io/component: {{ $name }}
+    {{- include "ofm.labels" $ | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $name }}
+  minReplicas: {{ default $.Values.global.autoscaling.minReplicas $scale.minReplicas }}
+  maxReplicas: {{ default $.Values.global.autoscaling.maxReplicas $scale.maxReplicas }}
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: {{ default $.Values.global.autoscaling.scaleUpStabilizationSeconds $scale.scaleUpStabilizationSeconds }}
+      selectPolicy: Max
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: {{ default $.Values.global.autoscaling.scaleDownStabilizationSeconds $scale.scaleDownStabilizationSeconds }}
+      selectPolicy: Min
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 60
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ default $.Values.global.autoscaling.cpuUtilization $scale.cpuUtilization }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ default $.Values.global.autoscaling.memoryUtilization $scale.memoryUtilization }}
+---
+{{- end }}
+{{- end }}
+{{- end }}

@@ -4,6 +4,10 @@
   value: local
 - name: LOG_LEVEL
   value: info
+- name: KAFKA_BROKERS
+  value: {{ include "ofm.kafkaHost" . }}:9092
+- name: KAFKA_REGISTRATION_GROUP_ID
+  value: registration-saga-service
 - name: NATS_URL
   value: nats://{{ include "ofm.natsHost" . }}:4222
 - name: NATS_USER
@@ -30,6 +34,8 @@
   value: "20"
 - name: SCYLLA_RETRY_BACKOFF
   value: 2s
+- name: SCYLLA_NUM_CONNS
+  value: "64"
 - name: NATS_STREAM_REGISTRATION_EVENTS
   value: REGISTRATION_EVENTS
 - name: NATS_STREAM_USER_EVENTS

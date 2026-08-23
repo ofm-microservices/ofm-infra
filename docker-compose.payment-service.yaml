@@ -48,3 +48,7 @@ volumes:
   payment_service_yugabyte_data:
   payment_service_yugabyte_disk0:
   payment_service_yugabyte_disk1:
+
+networks:
+  default:
+    name: ofm-infra_default

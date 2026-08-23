@@ -5,20 +5,35 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 image_tag="${OFM_K3S_IMAGE_TAG:-k3s}"
 cluster="${OFM_K3D_CLUSTER:-${OFM_K3S_CLUSTER:-ofm}}"
 
+resolve_host_ip() {
+    local resolved="${OFM_K3D_EXTERNAL_HOST:-}"
+    if [[ -n "$resolved" ]]; then
+        printf '%s\n' "$resolved"
+        return 0
+    fi
+
+    resolved="$(docker network inspect "k3d-$cluster" --format '{{(index .IPAM.Config 0).Gateway}}' 2>/dev/null || true)"
+    if [[ -n "$resolved" ]]; then
+        printf '%s\n' "$resolved"
+        return 0
+    fi
+
+    resolved="$(ip route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}' || true)"
+    if [[ -n "$resolved" ]]; then
+        printf '%s\n' "$resolved"
+        return 0
+    fi
+
+    printf '%s\n' "172.19.0.1"
+}
+
 if ! command -v k3d >/dev/null 2>&1; then
     echo "k3d is not installed" >&2
     exit 1
 fi
 
 if ! k3d cluster list | awk 'NR>1 {print $1}' | grep -qx "$cluster"; then
-    host_ip="${OFM_K3D_EXTERNAL_HOST:-}"
-    if [[ -z "$host_ip" ]]; then
-        host_ip="$(ip route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}' || true)"
-    fi
-    if [[ -z "$host_ip" ]]; then
-        host_ip="172.21.0.1"
-    fi
-
+    host_ip="$(resolve_host_ip)"
     k3d cluster create "$cluster" \
         --agents 1 \
         --servers 1 \
@@ -38,6 +53,7 @@ import_image() {
     k3d image import -c "$cluster" "$image"
 }
 
+import_image "monolith" "ofm/monolith:${image_tag}"
 import_image "api-gateway" "ofm/api-gateway:${image_tag}"
 import_image "auth-service" "ofm/auth-service:${image_tag}"
 import_image "user-service" "ofm/user-service:${image_tag}"

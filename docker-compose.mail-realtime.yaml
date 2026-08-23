@@ -1,0 +1,26 @@
+name: ofm-infra-mail-realtime
+
+services:
+  mail-service-redis:
+    image: redis:8-alpine
+    container_name: ofm-mail-service-redis
+    restart: unless-stopped
+    ports:
+      - "6385:6379"
+    volumes:
+      - mail_service_redis_data:/data
+
+  realtime-service-redis:
+    image: redis:8-alpine
+    container_name: ofm-realtime-service-redis
+    restart: unless-stopped
+    ports:
+      - "6386:6379"
+    volumes:
+      - realtime_service_redis_data:/data
+
+volumes:
+  mail_service_redis_data:
+    name: ofm-infra_mail_service_redis_data
+  realtime_service_redis_data:
+    name: ofm-infra_realtime_service_redis_data

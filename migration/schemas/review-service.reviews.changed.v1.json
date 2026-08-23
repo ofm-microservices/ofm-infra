@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "review-service.reviews.changed.v1",
+  "type": "object",
+  "required": ["event_id", "event_type", "schema_version", "aggregate_type", "aggregate_id", "source_service", "occurred_at", "payload"],
+  "properties": {
+    "event_id": {"type": "string", "format": "uuid"},
+    "event_type": {"const": "review-service.reviews.changed"},
+    "schema_version": {"const": 1},
+    "aggregate_type": {"const": "reviews"},
+    "aggregate_id": {"type": "string"},
+    "source_service": {"const": "review-service"},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "payload": {"type": "object", "additionalProperties": true}
+  },
+  "additionalProperties": false
+}

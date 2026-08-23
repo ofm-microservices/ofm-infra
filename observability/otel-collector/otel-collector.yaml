@@ -19,6 +19,12 @@ processors:
       - key: deployment.environment
         from_attribute: service.env
         action: upsert
+  transform/run-context:
+    trace_statements:
+      - context: span
+        statements:
+          - set(resource.attributes["test.run_id"], attributes["ofm.test_run_id"]) where attributes["ofm.test_run_id"] != nil
+          - set(resource.attributes["test.scenario_id"], attributes["ofm.scenario_id"]) where attributes["ofm.scenario_id"] != nil
 
 exporters:
   otlp/tempo:
@@ -33,5 +39,5 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, batch, resource]
+      processors: [memory_limiter, transform/run-context, batch, resource]
       exporters: [otlp/tempo]

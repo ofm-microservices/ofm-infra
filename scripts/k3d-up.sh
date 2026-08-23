@@ -10,6 +10,7 @@ kubeconfig="${OFM_K3D_KUBECONFIG:-$HOME/.kube/k3d-ofm.yaml}"
 import_images="${OFM_K3D_IMPORT:-0}"
 run_linkerd_proxy_check="${OFM_K3D_LINKERD_PROXY_CHECK:-0}"
 services_to_manage=(
+    monolith
     api-gateway
     auth-service
     user-service
@@ -35,22 +36,33 @@ source "$repo_root/ofm-infra/scripts/file-service-port-forward.sh"
 kubectl_cmd=(kubectl --kubeconfig "$kubeconfig")
 helm_cmd=(helm --kubeconfig "$kubeconfig")
 
-host_ip="${OFM_K3D_EXTERNAL_HOST:-}"
-if [[ -z "$host_ip" ]]; then
-    host_ip="$(ip route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}' || true)"
-fi
-if [[ -z "$host_ip" ]]; then
-    echo "failed to resolve host ip for k3d host alias" >&2
-    exit 1
-fi
+resolve_host_ip() {
+    local resolved="${OFM_K3D_EXTERNAL_HOST:-}"
+    if [[ -n "$resolved" ]]; then
+        printf '%s\n' "$resolved"
+        return 0
+    fi
+
+    resolved="$(docker network inspect "k3d-$cluster" --format '{{(index .IPAM.Config 0).Gateway}}' 2>/dev/null || true)"
+    if [[ -n "$resolved" ]]; then
+        printf '%s\n' "$resolved"
+        return 0
+    fi
+
+    resolved="$(ip route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}' || true)"
+    if [[ -n "$resolved" ]]; then
+        printf '%s\n' "$resolved"
+        return 0
+    fi
+
+    printf '%s\n' "172.19.0.1"
+}
+
+host_ip="$(resolve_host_ip)"
 
 if ! command -v k3d >/dev/null 2>&1; then
     echo "k3d is not installed" >&2
     exit 1
-fi
-
-if [[ -z "${OFM_K3D_EXTERNAL_HOST:-}" ]]; then
-    host_ip="172.21.0.1"
 fi
 
 if ! k3d cluster list | awk 'NR>1 {print $1}' | grep -qx "$cluster"; then
@@ -82,7 +94,7 @@ fi
 
 if command -v linkerd >/dev/null 2>&1; then
     if ! "${kubectl_cmd[@]}" -n linkerd get configmap linkerd-config >/dev/null 2>&1; then
-        "${kubectl_cmd[@]}" apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/standard-install.yaml
+        "${kubectl_cmd[@]}" apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/standard-install.yaml
         linkerd install --crds | "${kubectl_cmd[@]}" apply -f -
         linkerd install | "${kubectl_cmd[@]}" apply -f -
         "${kubectl_cmd[@]}" -n linkerd rollout status deploy/linkerd-identity --timeout=600s
@@ -108,6 +120,7 @@ fi
     -f "$chart_dir/common-values.yaml" \
     -f "$chart_dir/local-values.yaml" \
     -f "$chart_dir/local-secrets.yaml" \
+    --set global.externalHost="$host_ip" \
     --set global.imagePullPolicy=IfNotPresent
 
 for svc in "${services_to_manage[@]}"; do

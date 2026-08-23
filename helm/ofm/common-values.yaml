@@ -1,14 +1,26 @@
 global:
   namespace: ofm
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 4
+    cpuUtilization: 70
+    memoryUtilization: 80
+    scaleDownStabilizationSeconds: 300
+    scaleUpStabilizationSeconds: 0
   clusterDomain: cluster.local
-  externalHost: 172.21.0.1
+  externalHost: 172.19.0.1
   natsHost: ""
+  kafkaHost: ""
   nats:
     skipLinkerdOutbound: true
     clientPort: 4222
     monitorPort: 8222
   linkerd:
-    skipOutboundPorts: "4222,5433,5434,5435,5436,5437,6379,6380,6381,6382,9006,9007,9042,9043,9044,9045,9200"
+    # Host-published Redis/Kafka are infrastructure protocols, not HTTP traffic.
+    # Keep them outside Linkerd interception; otherwise Redis claims can fail
+    # with EOF and Kafka clients can fall back to misleading connection errors.
+    skipOutboundPorts: "4222,5433,5434,5435,5436,5437,6379,6380,6381,6382,6385,6386,9006,9007,9042,9043,9044,9045,9092,9200"
   vector:
     enabled: false
     configRevision: "1"
@@ -32,6 +44,14 @@ global:
       image: otel/opentelemetry-collector-contrib:0.120.0
     clickhouse:
       image: clickhouse/clickhouse-server:25.8
+
+migrationFailureRelay:
+  enabled: true
+  image: ofm/migration-bridge:1f6d32bf
+  schedule: "*/1 * * * *"
+  databaseName: ofm_monolith
+  databasePort: 5433
+  batchLimit: 100
   hostDbBridge:
     enabled: false
   networkPolicy:
@@ -39,10 +59,26 @@ global:
   imagePullPolicy: IfNotPresent
 
 services:
+  monolith:
+    enabled: true
+    autoscaling:
+      enabled: false
+    image: ofm/monolith:4a28fc55
+    replicaCount: 1
+    ports:
+      - name: http
+        containerPort: 8000
+        servicePort: 8000
+        protocol: TCP
+      - name: metrics
+        containerPort: 9600
+        servicePort: 9600
+        protocol: TCP
+
   api-gateway:
     enabled: true
-    image: ofm/api-gateway:k3s
-    replicaCount: 1
+    image: ofm/api-gateway:83c4b7e2
+    replicaCount: 2
     ports:
       - name: http
         containerPort: 8080
@@ -59,8 +95,8 @@ services:
 
   auth-service:
     enabled: true
-    image: ofm/auth-service:k3s
-    replicaCount: 1
+    image: ofm/auth-service:4a5cb872
+    replicaCount: 2
     ports:
       - name: grpc
         containerPort: 9501
@@ -73,8 +109,8 @@ services:
 
   user-service:
     enabled: true
-    image: ofm/user-service:k3s
-    replicaCount: 1
+    image: ofm/user-service:6a499b8d
+    replicaCount: 2
     ports:
       - name: grpc
         containerPort: 9502
@@ -87,8 +123,13 @@ services:
 
   registration-saga-service:
     enabled: true
-    image: ofm/registration-saga-service:k3s
-    replicaCount: 1
+    image: ofm/registration-saga-service:02b85cbc
+    replicaCount: 4
+    autoscaling:
+      minReplicas: 2
+      maxReplicas: 8
+      cpuUtilization: 65
+      memoryUtilization: 75
     ports:
       - name: grpc
         containerPort: 9500
@@ -101,7 +142,7 @@ services:
 
   gig-service:
     enabled: true
-    image: ofm/gig-service:k3s
+    image: ofm/gig-service:2f8a1c6e
     replicaCount: 1
     ports:
       - name: grpc
@@ -115,7 +156,7 @@ services:
 
   file-service:
     enabled: true
-    image: ofm/file-service:k3s
+    image: ofm/file-service:050cace7
     replicaCount: 1
     ports:
       - name: grpc
@@ -134,7 +175,7 @@ services:
 
   chat-service:
     enabled: true
-    image: ofm/chat-service:k3s
+    image: ofm/chat-service:ae8d753b
     replicaCount: 1
     ports:
       - name: grpc
@@ -148,7 +189,9 @@ services:
 
   payment-service:
     enabled: true
-    image: ofm/payment-service:k3s
+    stripe:
+      fakeEnabled: false
+    image: ofm/payment-service:a9cb672f
     replicaCount: 1
     ports:
       - name: http
@@ -170,7 +213,7 @@ services:
 
   review-service:
     enabled: true
-    image: ofm/review-service:k3s
+    image: ofm/review-service:4b02d06a
     replicaCount: 1
     ports:
       - name: grpc
@@ -184,7 +227,7 @@ services:
 
   search-service:
     enabled: true
-    image: ofm/search-service:k3s
+    image: ofm/search-service:67bee7f9
     replicaCount: 1
     ports:
       - name: grpc
@@ -198,7 +241,7 @@ services:
 
   order-service:
     enabled: true
-    image: ofm/order-service:k3s
+    image: ofm/order-service:6d2e91af
     replicaCount: 1
     ports:
       - name: grpc
@@ -212,7 +255,7 @@ services:
 
   order-saga-service:
     enabled: true
-    image: ofm/order-saga-service:k3s
+    image: ofm/order-saga-service:4a016819
     replicaCount: 1
     ports:
       - name: grpc
@@ -226,7 +269,7 @@ services:
 
   realtime-service:
     enabled: true
-    image: ofm/realtime-service:k3s
+    image: ofm/realtime-service:ef522ba2
     replicaCount: 1
     ports:
       - name: http
@@ -244,7 +287,7 @@ services:
 
   mail-service:
     enabled: true
-    image: ofm/mail-service:k3s
+    image: ofm/mail-service:6b7e0a9c
     replicaCount: 1
     ports:
       - name: metrics

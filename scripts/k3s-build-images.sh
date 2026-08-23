@@ -31,6 +31,7 @@ build_image() {
 }
 
 if [[ "$target_service" == "all" || "$target_service" == "api-gateway" ]]; then build_image "api-gateway" "ofm-api-gateway/Dockerfile" "ofm/api-gateway:${image_tag}"; fi
+if [[ "$target_service" == "all" || "$target_service" == "monolith" ]]; then build_image "monolith" "ofm-monolith/Dockerfile" "ofm/monolith:${image_tag}"; fi
 if [[ "$target_service" == "all" || "$target_service" == "auth-service" ]]; then build_image "auth-service" "ofm-auth-service/Dockerfile" "ofm/auth-service:${image_tag}"; fi
 if [[ "$target_service" == "all" || "$target_service" == "user-service" ]]; then build_image "user-service" "ofm-user-service/Dockerfile" "ofm/user-service:${image_tag}"; fi
 if [[ "$target_service" == "all" || "$target_service" == "registration-saga-service" ]]; then build_image "registration-saga-service" "ofm-registration-saga-service/Dockerfile" "ofm/registration-saga-service:${image_tag}"; fi

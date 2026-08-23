@@ -1,0 +1,321 @@
+{
+  "uid": "ofm-experiments",
+  "title": "OFM experimenting — Run Overview",
+  "tags": [
+    "ofm",
+    "experiments",
+    "run-id"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "10s",
+  "templating": {
+    "list": [
+      {
+        "name": "run_id",
+        "label": "Run ID",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "clickhouse"
+        },
+        "query": "SELECT DISTINCT run_id FROM ofm_load_test_runs ORDER BY started_at DESC LIMIT 100",
+        "includeAll": false,
+        "refresh": 1
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "type": "custom",
+        "query": "microservice,monolith",
+        "current": {
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
+        "includeAll": true,
+        "multi": true
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Verdict",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT multiIf(verdict='PASS',1,verdict='DEGRADED',2,0) AS value FROM ofm_load_test_runs WHERE run_id='$run_id' ORDER BY started_at DESC LIMIT 1",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Checks failed",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT checks_failed FROM ofm_load_test_runs WHERE run_id='$run_id' ORDER BY started_at DESC LIMIT 1",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "HTTP p95 (ms)",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT p95_duration_ms FROM ofm_load_test_runs WHERE run_id='$run_id' ORDER BY started_at DESC LIMIT 1",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Kafka lag",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT kafka_lag FROM ofm_load_test_runs WHERE run_id='$run_id' ORDER BY started_at DESC LIMIT 1",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Projection pending",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT projection_pending FROM ofm_load_test_runs WHERE run_id='$run_id' ORDER BY started_at DESC LIMIT 1",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Projection failures",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT projection_failures FROM ofm_load_test_runs WHERE run_id='$run_id' ORDER BY started_at DESC LIMIT 1",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Run history",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 5
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT run_id, scenario_id, architecture, profile, status, started_at, finished_at, checks_total, checks_failed, http_requests, http_failed, p95_duration_ms, kafka_lag, projection_pending, projection_failures, dlq_count, recovery_time_ms FROM ofm_load_test_runs WHERE architecture IN ($architecture) ORDER BY started_at DESC LIMIT 100",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Open run time window",
+                    "url": "/d/ofm-experiments?var-run_id=${__data.fields.run_id}&from=${__data.fields.started_at}&to=${__data.fields.finished_at}",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "footer": {
+          "show": true
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Latency and requests by run",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 5
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT started_at AS time, p95_duration_ms AS p95_ms, http_requests FROM ofm_load_test_runs WHERE run_id='$run_id' ORDER BY time",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Run logs",
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT timestamp, service, level, operation, message, trace_id, span_id, raw FROM ofm_logs WHERE test_run_id='$run_id' ORDER BY timestamp DESC LIMIT 500",
+          "format": "table"
+        }
+      ],
+      "options": {
+        "footer": {
+          "show": true
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Observed log p99 (ms)",
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT quantileExact(0.99)(duration_ms) AS value FROM ofm_logs WHERE test_run_id='$run_id' AND duration_ms>0",
+          "format": "table"
+        }
+      ]
+    }
+  ],
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "annotations": {
+    "list": []
+  }
+}

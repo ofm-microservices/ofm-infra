@@ -4,6 +4,8 @@
   value: local
 - name: LOG_LEVEL
   value: info
+- name: AUTH_FIXED_VERIFICATION_CODE
+  value: "123456"
 - name: DB_HOST
   value: {{ $host }}
 - name: DB_PORT
@@ -14,6 +16,12 @@
   value: admin
 - name: DB_NAME
   value: auth_service
+- name: KAFKA_BROKERS
+  value: {{ include "ofm.kafkaHost" . }}:9092
+- name: KAFKA_AUTH_GROUP_ID
+  value: auth-service
+- name: KAFKA_AUTH_DLQ_TOPIC
+  value: auth-service.dead-letter
 - name: NATS_URL
   value: nats://{{ include "ofm.natsHost" . }}:4222
 - name: NATS_USER

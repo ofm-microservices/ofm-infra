@@ -1,0 +1,279 @@
+name: ofm-infra
+
+services:
+  chat-scylla-cdc:
+    build:
+      context: ./migration/scylla-cdc
+    container_name: ofm-chat-scylla-cdc
+    profiles: [migration-runtime]
+    depends_on:
+      - kafka
+      - chat-service-scylla
+    environment:
+      SCYLLA_HOST: chat-service-scylla:9042
+      SCYLLA_NAME: migration-chat
+      SCYLLA_TABLES: chat_service.chats_by_order,chat_service.chat_messages_by_order,chat_service.chat_messages_by_id
+    command: ["/bin/sh", "-lc", "cp /opt/kafka/config/connect.properties /tmp/worker.properties && printf 'name=scylla-%s\\nconnector.class=com.scylladb.cdc.debezium.connector.ScyllaConnector\\ntopic.prefix=%s\\nkey.converter=org.apache.kafka.connect.json.JsonConverter\\nkey.converter.schemas.enable=false\\nvalue.converter=org.apache.kafka.connect.json.JsonConverter\\nvalue.converter.schemas.enable=false\\ntasks.max=1\\nscylla.cluster.ip.addresses=%s\\nscylla.user=admin\\nscylla.password=admin\\nscylla.initial.lookback.ms=60000\\nscylla.name=%s\\nscylla.table.names=%s\\n' \"$${SCYLLA_NAME}\" \"$${SCYLLA_NAME}\" \"$${SCYLLA_HOST}\" \"$${SCYLLA_NAME}\" \"$${SCYLLA_TABLES}\" > /tmp/connector.properties && exec /opt/kafka/bin/connect-standalone.sh /tmp/worker.properties /tmp/connector.properties"]
+
+  order-saga-scylla-cdc:
+    build:
+      context: ./migration/scylla-cdc
+    container_name: ofm-order-saga-scylla-cdc
+    profiles: [migration-runtime]
+    depends_on:
+      - kafka
+      - order-saga-service-scylla
+    environment:
+      SCYLLA_HOST: order-saga-service-scylla:9042
+      SCYLLA_NAME: migration-order-saga
+      SCYLLA_TABLES: order_saga.order_saga_sessions,order_saga.order_saga_steps
+    command: ["/bin/sh", "-lc", "cp /opt/kafka/config/connect.properties /tmp/worker.properties && printf 'name=scylla-%s\\nconnector.class=com.scylladb.cdc.debezium.connector.ScyllaConnector\\ntopic.prefix=%s\\nkey.converter=org.apache.kafka.connect.json.JsonConverter\\nkey.converter.schemas.enable=false\\nvalue.converter=org.apache.kafka.connect.json.JsonConverter\\nvalue.converter.schemas.enable=false\\ntasks.max=1\\nscylla.cluster.ip.addresses=%s\\nscylla.user=admin\\nscylla.password=admin\\nscylla.initial.lookback.ms=60000\\nscylla.name=%s\\nscylla.table.names=%s\\n' \"$${SCYLLA_NAME}\" \"$${SCYLLA_NAME}\" \"$${SCYLLA_HOST}\" \"$${SCYLLA_NAME}\" \"$${SCYLLA_TABLES}\" > /tmp/connector.properties && exec /opt/kafka/bin/connect-standalone.sh /tmp/worker.properties /tmp/connector.properties"]
+
+  registration-saga-scylla-cdc:
+    build:
+      context: ./migration/scylla-cdc
+    container_name: ofm-registration-saga-scylla-cdc
+    profiles: [migration-runtime]
+    depends_on:
+      - kafka
+      - registration-saga-service-scylla
+    environment:
+      SCYLLA_HOST: registration-saga-service-scylla:9042
+      SCYLLA_NAME: migration-registration-saga
+      SCYLLA_TABLES: registration_saga_service.registration_sessions,registration_saga_service.registration_sessions_by_email,registration_saga_service.registration_sessions_by_username,registration_saga_service.registration_steps
+    command: ["/bin/sh", "-lc", "cp /opt/kafka/config/connect.properties /tmp/worker.properties && printf 'name=scylla-%s\\nconnector.class=com.scylladb.cdc.debezium.connector.ScyllaConnector\\ntopic.prefix=%s\\nkey.converter=org.apache.kafka.connect.json.JsonConverter\\nkey.converter.schemas.enable=false\\nvalue.converter=org.apache.kafka.connect.json.JsonConverter\\nvalue.converter.schemas.enable=false\\ntasks.max=1\\nscylla.cluster.ip.addresses=%s\\nscylla.user=admin\\nscylla.password=admin\\nscylla.initial.lookback.ms=60000\\nscylla.name=%s\\nscylla.table.names=%s\\n' \"$${SCYLLA_NAME}\" \"$${SCYLLA_NAME}\" \"$${SCYLLA_HOST}\" \"$${SCYLLA_NAME}\" \"$${SCYLLA_TABLES}\" > /tmp/connector.properties && exec /opt/kafka/bin/connect-standalone.sh /tmp/worker.properties /tmp/connector.properties"]
+
+  file-scylla-cdc:
+    build:
+      context: ./migration/scylla-cdc
+    container_name: ofm-file-scylla-cdc
+    profiles: [migration-runtime]
+    depends_on:
+      - kafka
+      - file-service-scylla
+    environment:
+      SCYLLA_HOST: file-service-scylla:9042
+      SCYLLA_NAME: migration-file
+      SCYLLA_TABLES: file_service.files
+    command: ["/bin/sh", "-lc", "cp /opt/kafka/config/connect.properties /tmp/worker.properties && printf 'name=scylla-%s\\nconnector.class=com.scylladb.cdc.debezium.connector.ScyllaConnector\\ntopic.prefix=%s\\nkey.converter=org.apache.kafka.connect.json.JsonConverter\\nkey.converter.schemas.enable=false\\nvalue.converter=org.apache.kafka.connect.json.JsonConverter\\nvalue.converter.schemas.enable=false\\ntasks.max=1\\nscylla.cluster.ip.addresses=%s\\nscylla.user=admin\\nscylla.password=admin\\nscylla.initial.lookback.ms=60000\\nscylla.name=%s\\nscylla.table.names=%s\\n' \"$${SCYLLA_NAME}\" \"$${SCYLLA_NAME}\" \"$${SCYLLA_HOST}\" \"$${SCYLLA_NAME}\" \"$${SCYLLA_TABLES}\" > /tmp/connector.properties && exec /opt/kafka/bin/connect-standalone.sh /tmp/worker.properties /tmp/connector.properties"]
+
+  chat-migration-bridge:
+    build:
+      context: ..
+      dockerfile: ofm-migration-bridge/Dockerfile
+    container_name: ofm-chat-migration-bridge
+    profiles: [migration-runtime]
+    depends_on: [migration-schema-registry]
+    environment:
+      MIGRATION_KAFKA_BROKERS: kafka:9092
+      MIGRATION_KAFKA_SOURCE_TOPICS: migration-chat.chat_service.chats_by_order,migration-chat.chat_service.chat_messages_by_order,migration-chat.chat_service.chat_messages_by_id
+      MIGRATION_KAFKA_CONSUMER_GROUP: migration-bridge-chat
+      MIGRATION_SCHEMA_REGISTRY_URL: http://migration-schema-registry:8080/apis/registry/v3
+
+  order-saga-migration-bridge:
+    build:
+      context: ..
+      dockerfile: ofm-migration-bridge/Dockerfile
+    container_name: ofm-order-saga-migration-bridge
+    profiles: [migration-runtime]
+    depends_on: [migration-schema-registry]
+    environment:
+      MIGRATION_KAFKA_BROKERS: kafka:9092
+      MIGRATION_KAFKA_SOURCE_TOPICS: migration-order-saga.order_saga.order_saga_sessions,migration-order-saga.order_saga.order_saga_steps
+      MIGRATION_KAFKA_CONSUMER_GROUP: migration-bridge-order-saga
+      MIGRATION_SCHEMA_REGISTRY_URL: http://migration-schema-registry:8080/apis/registry/v3
+
+  registration-saga-migration-bridge:
+    build:
+      context: ..
+      dockerfile: ofm-migration-bridge/Dockerfile
+    container_name: ofm-registration-saga-migration-bridge
+    profiles: [migration-runtime]
+    depends_on: [migration-schema-registry]
+    environment:
+      MIGRATION_KAFKA_BROKERS: kafka:9092
+      MIGRATION_KAFKA_SOURCE_TOPICS: migration-registration-saga.registration_saga_service.registration_sessions,migration-registration-saga.registration_saga_service.registration_sessions_by_email,migration-registration-saga.registration_saga_service.registration_sessions_by_username,migration-registration-saga.registration_saga_service.registration_steps
+      MIGRATION_KAFKA_CONSUMER_GROUP: migration-bridge-registration-saga
+      MIGRATION_SCHEMA_REGISTRY_URL: http://migration-schema-registry:8080/apis/registry/v3
+
+  file-migration-bridge:
+    build:
+      context: ..
+      dockerfile: ofm-migration-bridge/Dockerfile
+    container_name: ofm-file-migration-bridge
+    profiles: [migration-runtime]
+    depends_on: [migration-schema-registry]
+    environment:
+      MIGRATION_KAFKA_BROKERS: kafka:9092
+      MIGRATION_KAFKA_SOURCE_TOPICS: migration-file.file_service.files
+      MIGRATION_KAFKA_CONSUMER_GROUP: migration-bridge-file
+      MIGRATION_SCHEMA_REGISTRY_URL: http://migration-schema-registry:8080/apis/registry/v3
+  auth-debezium:
+    image: quay.io/yugabyte/debezium-connector:latest
+    container_name: ofm-auth-debezium
+    profiles: [migration-runtime]
+    depends_on:
+      auth-service-yugabyte: {condition: service_started}
+      auth-service-yugabyte-init: {condition: service_completed_successfully}
+    volumes:
+      - ./migration/debezium-server/application.properties:/opt/kafka/config/connect-standalone.properties:ro
+      - ./migration/debezium-server/auth.properties:/opt/kafka/config/auth.properties:ro
+      - auth_debezium_data:/opt/kafka/data
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["cp -rn /opt/kafka/config.orig/* /opt/kafka/config/ && exec /opt/kafka/bin/connect-standalone.sh /opt/kafka/config/connect-standalone.properties /opt/kafka/config/auth.properties"]
+
+  user-debezium:
+    image: quay.io/yugabyte/debezium-connector:latest
+    container_name: ofm-user-debezium
+    profiles: [migration-runtime]
+    depends_on:
+      user-service-yugabyte: {condition: service_started}
+      user-service-yugabyte-init: {condition: service_completed_successfully}
+    volumes:
+      - ./migration/debezium-server/application.properties:/opt/kafka/config/connect-standalone.properties:ro
+      - ./migration/debezium-server/user.properties:/opt/kafka/config/user.properties:ro
+      - user_debezium_data:/opt/kafka/data
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["cp -rn /opt/kafka/config.orig/* /opt/kafka/config/ && exec /opt/kafka/bin/connect-standalone.sh /opt/kafka/config/connect-standalone.properties /opt/kafka/config/user.properties"]
+
+  gig-debezium:
+    image: quay.io/yugabyte/debezium-connector:latest
+    container_name: ofm-gig-debezium
+    profiles: [migration-runtime]
+    depends_on:
+      gig-service-yugabyte: {condition: service_started}
+      gig-service-yugabyte-init: {condition: service_completed_successfully}
+    volumes:
+      - ./migration/debezium-server/application.properties:/opt/kafka/config/connect-standalone.properties:ro
+      - ./migration/debezium-server/gig.properties:/opt/kafka/config/gig.properties:ro
+      - gig_debezium_data:/opt/kafka/data
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["cp -rn /opt/kafka/config.orig/* /opt/kafka/config/ && exec /opt/kafka/bin/connect-standalone.sh /opt/kafka/config/connect-standalone.properties /opt/kafka/config/gig.properties"]
+
+  order-debezium:
+    image: quay.io/yugabyte/debezium-connector:latest
+    container_name: ofm-order-debezium
+    profiles: [migration-runtime]
+    depends_on:
+      order-service-yugabyte: {condition: service_started}
+      order-service-yugabyte-init: {condition: service_completed_successfully}
+    volumes:
+      - ./migration/debezium-server/application.properties:/opt/kafka/config/connect-standalone.properties:ro
+      - ./migration/debezium-server/order.properties:/opt/kafka/config/order.properties:ro
+      - order_debezium_data:/opt/kafka/data
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["cp -rn /opt/kafka/config.orig/* /opt/kafka/config/ && exec /opt/kafka/bin/connect-standalone.sh /opt/kafka/config/connect-standalone.properties /opt/kafka/config/order.properties"]
+
+  payment-debezium:
+    image: quay.io/yugabyte/debezium-connector:latest
+    container_name: ofm-payment-debezium
+    profiles: [migration-runtime]
+    depends_on:
+      payment-service-yugabyte: {condition: service_started}
+      payment-service-yugabyte-init: {condition: service_completed_successfully}
+    volumes:
+      - ./migration/debezium-server/application.properties:/opt/kafka/config/connect-standalone.properties:ro
+      - ./migration/debezium-server/payment.properties:/opt/kafka/config/payment.properties:ro
+      - payment_debezium_data:/opt/kafka/data
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["cp -rn /opt/kafka/config.orig/* /opt/kafka/config/ && exec /opt/kafka/bin/connect-standalone.sh /opt/kafka/config/connect-standalone.properties /opt/kafka/config/payment.properties"]
+
+  review-debezium:
+    image: quay.io/yugabyte/debezium-connector:latest
+    container_name: ofm-review-debezium
+    profiles: [migration-runtime]
+    depends_on:
+      review-service-yugabyte: {condition: service_started}
+      review-service-yugabyte-init: {condition: service_completed_successfully}
+    volumes:
+      - ./migration/debezium-server/application.properties:/opt/kafka/config/connect-standalone.properties:ro
+      - ./migration/debezium-server/review.properties:/opt/kafka/config/review.properties:ro
+      - review_debezium_data:/opt/kafka/data
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["cp -rn /opt/kafka/config.orig/* /opt/kafka/config/ && exec /opt/kafka/bin/connect-standalone.sh /opt/kafka/config/connect-standalone.properties /opt/kafka/config/review.properties"]
+
+  auth-migration-bridge:
+    build:
+      context: ..
+      dockerfile: ofm-migration-bridge/Dockerfile
+    container_name: ofm-auth-migration-bridge
+    profiles: [migration-runtime]
+    depends_on: [migration-schema-registry]
+    environment:
+      MIGRATION_KAFKA_BROKERS: kafka:9092
+      MIGRATION_KAFKA_SOURCE_TOPICS: cdc.auth.public.outbox_events
+      MIGRATION_KAFKA_CONSUMER_GROUP: migration-bridge-auth
+      MIGRATION_SCHEMA_REGISTRY_URL: http://migration-schema-registry:8080/apis/registry/v3
+
+  user-migration-bridge:
+    build:
+      context: ..
+      dockerfile: ofm-migration-bridge/Dockerfile
+    container_name: ofm-user-migration-bridge
+    profiles: [migration-runtime]
+    depends_on: [migration-schema-registry]
+    environment:
+      MIGRATION_KAFKA_BROKERS: kafka:9092
+      MIGRATION_KAFKA_SOURCE_TOPICS: cdc.user.public.outbox_events
+      MIGRATION_KAFKA_CONSUMER_GROUP: migration-bridge-users
+      MIGRATION_SCHEMA_REGISTRY_URL: http://migration-schema-registry:8080/apis/registry/v3
+
+  gig-migration-bridge:
+    build:
+      context: ..
+      dockerfile: ofm-migration-bridge/Dockerfile
+    container_name: ofm-gig-migration-bridge
+    profiles: [migration-runtime]
+    depends_on: [migration-schema-registry]
+    environment:
+      MIGRATION_KAFKA_BROKERS: kafka:9092
+      MIGRATION_KAFKA_SOURCE_TOPICS: cdc.gig.public.outbox_events
+      MIGRATION_KAFKA_CONSUMER_GROUP: migration-bridge-gigs
+      MIGRATION_SCHEMA_REGISTRY_URL: http://migration-schema-registry:8080/apis/registry/v3
+
+  order-migration-bridge:
+    build:
+      context: ..
+      dockerfile: ofm-migration-bridge/Dockerfile
+    container_name: ofm-order-migration-bridge
+    profiles: [migration-runtime]
+    depends_on: [migration-schema-registry]
+    environment:
+      MIGRATION_KAFKA_BROKERS: kafka:9092
+      MIGRATION_KAFKA_SOURCE_TOPICS: cdc.order.public.outbox_events
+      MIGRATION_KAFKA_CONSUMER_GROUP: migration-bridge-orders
+      MIGRATION_SCHEMA_REGISTRY_URL: http://migration-schema-registry:8080/apis/registry/v3
+
+  payment-migration-bridge:
+    build:
+      context: ..
+      dockerfile: ofm-migration-bridge/Dockerfile
+    container_name: ofm-payment-migration-bridge
+    profiles: [migration-runtime]
+    depends_on: [migration-schema-registry]
+    environment:
+      MIGRATION_KAFKA_BROKERS: kafka:9092
+      MIGRATION_KAFKA_SOURCE_TOPICS: cdc.payment.public.outbox_events
+      MIGRATION_KAFKA_CONSUMER_GROUP: migration-bridge-payments
+      MIGRATION_SCHEMA_REGISTRY_URL: http://migration-schema-registry:8080/apis/registry/v3
+
+  review-migration-bridge:
+    build:
+      context: ..
+      dockerfile: ofm-migration-bridge/Dockerfile
+    container_name: ofm-review-migration-bridge
+    profiles: [migration-runtime]
+    depends_on: [migration-schema-registry]
+    environment:
+      MIGRATION_KAFKA_BROKERS: kafka:9092
+      MIGRATION_KAFKA_SOURCE_TOPICS: cdc.review.public.outbox_events
+      MIGRATION_KAFKA_CONSUMER_GROUP: migration-bridge-reviews
+      MIGRATION_SCHEMA_REGISTRY_URL: http://migration-schema-registry:8080/apis/registry/v3
+
+volumes:
+  auth_debezium_data:
+  user_debezium_data:
+  gig_debezium_data:
+  order_debezium_data:
+  payment_debezium_data:
+  review_debezium_data:

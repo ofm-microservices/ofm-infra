@@ -119,6 +119,9 @@ generate_jwt() {
 
 access_token="${GIG_ACCESS_TOKEN:-$(generate_jwt)}"
 auth_header="Authorization: Bearer $access_token"
+if [[ -n "${GIG_TOKEN_FILE:-}" ]]; then
+  printf '%s' "$access_token" > "$GIG_TOKEN_FILE"
+fi
 
 touch "$LOG_FILE"
 : > "$LOG_FILE"

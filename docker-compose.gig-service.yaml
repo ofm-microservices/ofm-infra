@@ -48,3 +48,7 @@ volumes:
   gig_service_yugabyte_data:
   gig_service_yugabyte_disk0:
   gig_service_yugabyte_disk1:
+
+networks:
+  default:
+    name: ofm-infra_default
