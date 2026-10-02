@@ -1,11 +1,22 @@
 global:
   namespace: ofm
+  observabilityMode: dev
   clusterDomain: cluster.local
+  autoscaling:
+    enabled: false
   externalHost: 172.22.0.1
-  natsHost: host.k3d.internal
-  # Use the Docker host bridge explicitly so Kafka metadata never resolves to
-  # the compose-only `kafka` name from inside k3d.
-  kafkaHost: 172.22.0.1
+  # The monolith has its own PostgreSQL container, published on the host.
+  # host-db-bridge is used only by the monolith and migration relay.
+  natsHost: 172.22.0.11
+  # Kafka is attached to the k3d Docker network with a fixed address. Pods
+  # must use the broker directly; routing through host.k3d.internal causes
+  # heartbeat timeouts and group-wide reconnect storms under load.
+  kafkaHost: 172.22.0.10
+  # Redis is reached through the k3d host gateway. Docker may assign a
+  # different bridge IP after a host/cluster restart, so never pin its
+  # container address in Kubernetes configuration.
+  gigRedisHost: host.k3d.internal
+  gigRedisPort: 6380
   vector:
     enabled: true
     configRevision: "7"
@@ -13,7 +24,7 @@ global:
   observability:
     enabled: true
   hostDbBridge:
-    enabled: false
+    enabled: true
   networkPolicy:
     enabled: false
 
@@ -21,9 +32,17 @@ _secrets:
   payment: {}
   mail: {}
 
+migrationFailureRelay:
+  image: ofm/migration-bridge:374ca812ed65
+
 services:
   monolith:
     enabled: true
+    replicaCount: 3
+    stripe:
+      fakeEnabled: true
+    autoscaling:
+      enabled: false
     ingress:
       enabled: true
       host: monolith.ofm.local
@@ -32,17 +51,32 @@ services:
     enabled: true
   auth-service:
     enabled: true
+    # Run schema migrations from one pod during local bootstrap. Multiple
+    # replicas otherwise contend for the migration advisory lock.
+    replicaCount: 1
   user-service:
     enabled: true
   registration-saga-service:
     enabled: true
   gig-service:
     enabled: true
+    # Recovery consumers share this group's partitions with the HTTP workers.
+    # Migrations currently run during application startup. Start one pod so
+    # the PostgreSQL migration lock is acquired by a single process; HPA can add
+    # consumers after bootstrap without concurrent migration deadlocks.
+    replicaCount: 1
+    autoscaling:
+      enabled: true
+      minReplicas: 1
+      maxReplicas: 3
+      cpuUtilization: 70
+      memoryUtilization: 80
+      scaleUpStabilizationSeconds: 0
+      scaleDownStabilizationSeconds: 180
   file-service:
     enabled: true
   chat-service:
     enabled: true
-    scyllaPort: 9045
   payment-service:
     enabled: true
     ingress:

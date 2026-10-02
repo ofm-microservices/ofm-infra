@@ -9,7 +9,7 @@
 - name: DB_HOST
   value: {{ $host }}
 - name: DB_PORT
-  value: "5438"
+  value: "5443"
 - name: DB_USER
   value: admin
 - name: DB_PASSWORD
@@ -28,8 +28,12 @@
   value: {{ include "ofm.kafkaHost" . }}:9092
 - name: KAFKA_REVIEW_GROUP_ID
   value: review-service
-- name: NATS_URL
-  value: nats://{{ include "ofm.natsHost" . }}:4222
+- name: KAFKA_REVIEW_RECOVERY_TOPIC
+  value: migration.recovery.commands.review
+- name: KAFKA_REVIEW_RECOVERY_GROUP
+  value: review-service-recovery
+- name: KAFKA_REVIEW_RECOVERY_COMPLETED_TOPIC
+  value: migration.recovery.completed
 - name: NATS_USER
   value: ""
 - name: NATS_PASSWORD

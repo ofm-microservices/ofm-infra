@@ -4,32 +4,20 @@
   value: local
 - name: LOG_LEVEL
   value: info
-- name: SCYLLA_HOSTS
+- name: DB_HOST
   value: {{ $host }}
-- name: SCYLLA_PORT
-  value: "9043"
-- name: SCYLLA_USERNAME
+- name: DB_PORT
+  value: "5440"
+- name: DB_USER
   value: admin
-- name: SCYLLA_PASSWORD
+- name: DB_PASSWORD
   value: admin
-- name: NATS_URL
-  value: nats://{{ include "ofm.natsHost" . }}:4222
 - name: NATS_USER
   value: ""
 - name: NATS_PASSWORD
   value: ""
-- name: SCYLLA_KEYSPACE
+- name: DB_NAME
   value: file_service
-- name: SCYLLA_CONSISTENCY
-  value: quorum
-- name: SCYLLA_CONNECT_TIMEOUT
-  value: 10s
-- name: SCYLLA_MAX_WAIT_SCHEMA_AGREEMENT
-  value: 30s
-- name: SCYLLA_RETRY_ATTEMPTS
-  value: "20"
-- name: SCYLLA_RETRY_BACKOFF
-  value: 2s
 - name: RUSTFS_ENDPOINT
   value: http://{{ $host }}:9006
 - name: RUSTFS_ACCESS_KEY
@@ -42,6 +30,16 @@
   value: ofm-files
 - name: RUSTFS_SECURE
   value: "false"
+- name: KAFKA_BROKERS
+  value: {{ include "ofm.kafkaHost" . }}:9092
+- name: KAFKA_FILE_RECOVERY_TOPIC
+  value: migration.recovery.commands.file
+- name: KAFKA_FILE_RECOVERY_GROUP
+  value: file-service-recovery
+- name: KAFKA_FILE_RECOVERY_COMPLETED_TOPIC
+  value: migration.recovery.completed
+- name: KAFKA_FILE_DLQ_TOPIC
+  value: file-service-dead-letter
 - name: GRPC_HOST
   value: 0.0.0.0
 - name: GRPC_PORT

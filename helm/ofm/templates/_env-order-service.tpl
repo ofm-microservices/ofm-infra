@@ -11,7 +11,7 @@
 - name: DB_HOST
   value: {{ $host }}
 - name: DB_PORT
-  value: "5437"
+  value: "5436"
 - name: DB_USER
   value: admin
 - name: DB_PASSWORD
@@ -30,8 +30,12 @@
   value: {{ include "ofm.kafkaHost" . }}:9092
 - name: KAFKA_ORDER_GROUP_ID
   value: order-service
-- name: NATS_URL
-  value: nats://{{ include "ofm.natsHost" . }}:4222
+- name: KAFKA_ORDER_RECOVERY_TOPIC
+  value: migration.recovery.commands.order
+- name: KAFKA_ORDER_RECOVERY_GROUP
+  value: order-service-recovery
+- name: KAFKA_ORDER_RECOVERY_COMPLETED_TOPIC
+  value: migration.recovery.completed
 - name: NATS_USER
   value: ""
 - name: NATS_PASSWORD

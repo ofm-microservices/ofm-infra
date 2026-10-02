@@ -5,12 +5,20 @@
   value: {{ include "ofm.kafkaHost" . }}:9092
 - name: KAFKA_REALTIME_GROUP_ID
   value: realtime-service
+- name: KAFKA_CHAT_EVENTS_TOPIC
+  value: migration.chat-service.chat.changed
+- name: POD_NAME
+  valueFrom:
+    fieldRef:
+      fieldPath: metadata.name
 - name: REDIS_HOST
   value: {{ include "ofm.externalHost" . }}
 - name: REDIS_PORT
   value: "6386"
 - name: REDIS_DB
   value: "0"
+- name: REDIS_POOL_SIZE
+  value: "150"
 - name: JWT_ACCESS_SECRET
   value: aa96fae1a6eee39b879dad6b6bb372e63278257bf9f94010bc7d25693f61e38c
 - name: HTTP_HOST

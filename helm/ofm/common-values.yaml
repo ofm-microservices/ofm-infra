@@ -1,9 +1,21 @@
 global:
+  # One HS256 access-token key is shared by auth-service, gateway and the
+  # monolith v2 compatibility boundary in local Kubernetes.
+  jwt:
+    accessSecret: "aa96fae1a6eee39b879dad6b6bb372e63278257bf9f94010bc7d25693f61e38c"
+    issuer: "ofm-auth-service"
   namespace: ofm
+  # Transport request/event payload diagnostics are opt-in and intended for
+  # local development only. Production values must override this to production.
+  observabilityMode: production
   autoscaling:
-    enabled: true
+    # Local development stays at one replica per workload; production can
+    # enable autoscaling through a separate values file.
+    enabled: false
     minReplicas: 1
-    maxReplicas: 4
+    # Keep local clusters bounded so autoscaling cannot exhaust the developer
+    # workstation. Service-specific overrides must not exceed this ceiling.
+    maxReplicas: 3
     cpuUtilization: 70
     memoryUtilization: 80
     scaleDownStabilizationSeconds: 300
@@ -47,7 +59,7 @@ global:
 
 migrationFailureRelay:
   enabled: true
-  image: ofm/migration-bridge:1f6d32bf
+  image: ofm/migration-bridge:374ca812ed65
   schedule: "*/1 * * * *"
   databaseName: ofm_monolith
   databasePort: 5433
@@ -63,7 +75,9 @@ services:
     enabled: true
     autoscaling:
       enabled: false
-    image: ofm/monolith:4a28fc55
+    stripe:
+      fakeEnabled: false
+    image: ofm/monolith:374ca812ed65
     replicaCount: 1
     ports:
       - name: http
@@ -77,8 +91,8 @@ services:
 
   api-gateway:
     enabled: true
-    image: ofm/api-gateway:83c4b7e2
-    replicaCount: 2
+    image: ofm/api-gateway:374ca812ed65
+    replicaCount: 1
     ports:
       - name: http
         containerPort: 8080
@@ -95,8 +109,8 @@ services:
 
   auth-service:
     enabled: true
-    image: ofm/auth-service:4a5cb872
-    replicaCount: 2
+    image: ofm/auth-service:374ca812ed65
+    replicaCount: 1
     ports:
       - name: grpc
         containerPort: 9501
@@ -109,8 +123,8 @@ services:
 
   user-service:
     enabled: true
-    image: ofm/user-service:6a499b8d
-    replicaCount: 2
+    image: ofm/user-service:374ca812ed65
+    replicaCount: 1
     ports:
       - name: grpc
         containerPort: 9502
@@ -123,11 +137,13 @@ services:
 
   registration-saga-service:
     enabled: true
-    image: ofm/registration-saga-service:02b85cbc
-    replicaCount: 4
+    image: ofm/registration-saga-service:374ca812ed65
+    # Keep the local baseline below the HPA ceiling so a cold start does not
+    # immediately consume more host resources than the development machine has.
+    replicaCount: 1
     autoscaling:
       minReplicas: 2
-      maxReplicas: 8
+      maxReplicas: 3
       cpuUtilization: 65
       memoryUtilization: 75
     ports:
@@ -142,8 +158,11 @@ services:
 
   gig-service:
     enabled: true
-    image: ofm/gig-service:2f8a1c6e
-    replicaCount: 1
+    image: ofm/gig-service:374ca812ed65
+    # Local Kafka projection topics are single-partition and the development
+    # broker runs one node. Two replicas provide failover without causing the
+    # repeated consumer-group rebalances seen with eight idle members.
+    replicaCount: 2
     ports:
       - name: grpc
         containerPort: 9503
@@ -156,7 +175,7 @@ services:
 
   file-service:
     enabled: true
-    image: ofm/file-service:050cace7
+    image: ofm/file-service:374ca812ed65
     replicaCount: 1
     ports:
       - name: grpc
@@ -175,7 +194,7 @@ services:
 
   chat-service:
     enabled: true
-    image: ofm/chat-service:ae8d753b
+    image: ofm/chat-service:374ca812ed65
     replicaCount: 1
     ports:
       - name: grpc
@@ -191,7 +210,7 @@ services:
     enabled: true
     stripe:
       fakeEnabled: false
-    image: ofm/payment-service:a9cb672f
+    image: ofm/payment-service:374ca812ed65
     replicaCount: 1
     ports:
       - name: http
@@ -213,7 +232,7 @@ services:
 
   review-service:
     enabled: true
-    image: ofm/review-service:4b02d06a
+    image: ofm/review-service:374ca812ed65
     replicaCount: 1
     ports:
       - name: grpc
@@ -227,7 +246,7 @@ services:
 
   search-service:
     enabled: true
-    image: ofm/search-service:67bee7f9
+    image: ofm/search-service:374ca812ed65
     replicaCount: 1
     ports:
       - name: grpc
@@ -241,7 +260,7 @@ services:
 
   order-service:
     enabled: true
-    image: ofm/order-service:6d2e91af
+    image: ofm/order-service:374ca812ed65
     replicaCount: 1
     ports:
       - name: grpc
@@ -255,7 +274,7 @@ services:
 
   order-saga-service:
     enabled: true
-    image: ofm/order-saga-service:4a016819
+    image: ofm/order-saga-service:374ca812ed65
     replicaCount: 1
     ports:
       - name: grpc
@@ -269,7 +288,7 @@ services:
 
   realtime-service:
     enabled: true
-    image: ofm/realtime-service:ef522ba2
+    image: ofm/realtime-service:374ca812ed65
     replicaCount: 1
     ports:
       - name: http
@@ -287,7 +306,7 @@ services:
 
   mail-service:
     enabled: true
-    image: ofm/mail-service:6b7e0a9c
+    image: ofm/mail-service:374ca812ed65
     replicaCount: 1
     ports:
       - name: metrics

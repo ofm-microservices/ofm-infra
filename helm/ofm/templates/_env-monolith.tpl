@@ -1,5 +1,9 @@
 {{- define "ofm.serviceEnv.monolith" -}}
 {{- $host := include "ofm.externalHost" . -}}
+{{- $dbHost := $host -}}
+{{- if .Values.global.hostDbBridge.enabled }}
+{{- $dbHost = "host-db-bridge" -}}
+{{- end }}
 - name: APP_ENV
   value: k3d
 - name: LOG_LEVEL
@@ -15,7 +19,7 @@
 - name: METRICS_PORT
   value: "9600"
 - name: DB_HOST
-  value: {{ $host }}
+  value: {{ $dbHost }}
 - name: DB_PORT
   value: "5433"
 - name: DB_USER
@@ -28,14 +32,28 @@
   value: disable
 - name: SERVICE_FEE
   value: "0.05"
+- name: STRIPE_FAKE_ENABLED
+  value: {{ default false .Values.services.monolith.stripe.fakeEnabled | quote }}
 - name: JWT_SECRET
-  value: aa96fae1a6eee39b879dad6b6bb372e63278257bf9f94010bc7d25693f61e38c
+  value: {{ required "global.jwt.accessSecret is required" .Values.global.jwt.accessSecret | quote }}
 - name: ACCESS_TOKEN_EXPIRATION
   value: "15"
 - name: REFRESH_TOKEN_EXPIRATION
   value: "43200"
 - name: MAX_CONNECTIONS
   value: "200"
+- name: DB_MAX_OPEN_CONNS
+  value: "30"
+- name: DB_MAX_IDLE_CONNS
+  value: "10"
+- name: DB_CONN_MAX_LIFETIME
+  value: 30m
+- name: DB_CONN_MAX_IDLE_TIME
+  value: 5m
+- name: FILE_SERVER_HOST
+  value: http://{{ $host }}:9006/ofm-files
+- name: AWS_BUCKET
+  value: ofm-files
 - name: MONOLITH_RATE_LIMIT_BYPASS_TOKEN
   valueFrom:
     secretKeyRef:
@@ -69,7 +87,7 @@
 - name: MIGRATION_RECOVERY_COMMAND_TOPIC
   value: migration.recovery.commands
 - name: MIGRATION_PROJECTION_MODE
-  value: mapping-only
+  value: full
 - name: MIGRATION_FALLBACK_SKIP_EXTERNAL_SIDE_EFFECTS
   value: "true"
 - name: TRACING_ENABLED

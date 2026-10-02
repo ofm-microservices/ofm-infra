@@ -1,16 +1,11 @@
 {{- define "ofm.serviceEnv.user-service" -}}
 {{- $host := include "ofm.externalHost" . -}}
-{{- $useHostDbBridge := default false .Values.global.hostDbBridge.enabled -}}
 - name: APP_ENV
   value: local
 - name: LOG_LEVEL
   value: info
 - name: DB_HOST
-{{- if $useHostDbBridge }}
-  value: host-db-bridge
-{{- else }}
   value: {{ $host }}
-{{- end }}
 - name: DB_PORT
   value: "5433"
 - name: DB_USER
@@ -31,8 +26,12 @@
   value: {{ include "ofm.kafkaHost" . }}:9092
 - name: KAFKA_USER_GROUP_ID
   value: user-service
-- name: NATS_URL
-  value: nats://{{ include "ofm.natsHost" . }}:4222
+- name: KAFKA_USER_RECOVERY_TOPIC
+  value: migration.recovery.commands.user
+- name: KAFKA_USER_RECOVERY_GROUP
+  value: user-service-recovery
+- name: KAFKA_USER_RECOVERY_COMPLETED_TOPIC
+  value: migration.recovery.completed
 - name: NATS_USER
   value: ""
 - name: NATS_PASSWORD

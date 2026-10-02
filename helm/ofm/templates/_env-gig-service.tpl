@@ -1,7 +1,11 @@
 {{- define "ofm.serviceEnv.gig-service" -}}
 {{- $host := include "ofm.externalHost" . -}}
+{{- $redisHost := default $host .Values.global.gigRedisHost -}}
+{{- $redisPort := default 6379 .Values.global.gigRedisPort -}}
 - name: APP_ENV
   value: local
+- name: GIG_WARMUP_ENABLED
+  value: "false"
 - name: LOG_LEVEL
   value: info
 - name: DB_HOST
@@ -15,9 +19,9 @@
 - name: DB_NAME
   value: gig_service
 - name: REDIS_HOST
-  value: {{ $host }}
+  value: {{ $redisHost }}
 - name: REDIS_PORT
-  value: "6380"
+  value: "{{ $redisPort }}"
 - name: REDIS_PASSWORD
   value: ""
 - name: REDIS_DB
@@ -28,8 +32,12 @@
   value: gig-service
 - name: KAFKA_GIG_DLQ_TOPIC
   value: gig-service.dead-letter
-- name: NATS_URL
-  value: nats://{{ include "ofm.natsHost" . }}:4222
+- name: KAFKA_GIG_RECOVERY_TOPIC
+  value: migration.recovery.commands.gig
+- name: KAFKA_GIG_RECOVERY_GROUP
+  value: gig-service-recovery
+- name: KAFKA_GIG_RECOVERY_COMPLETED_TOPIC
+  value: migration.recovery.completed
 - name: NATS_USER
   value: ""
 - name: NATS_PASSWORD

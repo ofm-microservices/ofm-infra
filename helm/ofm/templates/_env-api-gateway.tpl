@@ -3,8 +3,6 @@
   value: local
 - name: LOG_LEVEL
   value: info
-- name: NATS_URL
-  value: nats://{{ include "ofm.natsHost" . }}:4222
 - name: NATS_USER
   value: ""
 - name: NATS_PASSWORD
@@ -52,7 +50,7 @@
 - name: WS_PATH
   value: /ws
 - name: JWT_ACCESS_SECRET
-  value: aa96fae1a6eee39b879dad6b6bb372e63278257bf9f94010bc7d25693f61e38c
+  value: {{ required "global.jwt.accessSecret is required" .Values.global.jwt.accessSecret | quote }}
 - name: MIGRATION_SEARCH_MODE
   value: service
 - name: MIGRATION_REDIS_HOST
@@ -61,6 +59,8 @@
   value: "6387"
 - name: MONOLITH_BASE_URL
   value: http://monolith.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:8000
+- name: MONOLITH_HTTP_TIMEOUT
+  value: 15s
 - name: MONOLITH_RATE_LIMIT_BYPASS_TOKEN
   valueFrom:
     secretKeyRef:
@@ -69,20 +69,6 @@
       optional: true
 - name: MIGRATION_WRITE_FALLBACK
   value: "true"
-- name: MIGRATION_RECOVERY_KAFKA_BROKERS
-  value: {{ include "ofm.kafkaHost" . }}:9092
-- name: MIGRATION_RECOVERY_COMMAND_TOPIC
-  value: migration.recovery.commands
-- name: MIGRATION_RECOVERY_CONSUMER_GROUP
-  value: api-gateway-recovery
-- name: MIGRATION_RECOVERY_DLQ_TOPIC
-  value: migration.recovery.commands.dlq
-- name: MIGRATION_RECOVERY_COMPLETED_TOPIC
-  value: migration.recovery.completed
-- name: MIGRATION_RECOVERY_MAX_ATTEMPTS
-  value: "10"
-- name: MIGRATION_RECOVERY_BASE_URL
-  value: http://api-gateway.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:8080
 - name: TRACING_ENABLED
   value: "true"
 - name: OTEL_EXPORTER_OTLP_ENDPOINT

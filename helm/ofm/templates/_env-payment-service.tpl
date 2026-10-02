@@ -19,7 +19,7 @@
 - name: DB_HOST
   value: {{ $host }}
 - name: DB_PORT
-  value: "5436"
+  value: "5437"
 - name: DB_USER
   value: admin
 - name: DB_PASSWORD
@@ -42,6 +42,12 @@
   value: payment.intent
 - name: KAFKA_PAYMENT_PROJECTION_TOPIC
   value: payment.projection
+- name: KAFKA_PAYMENT_RECOVERY_TOPIC
+  value: migration.recovery.commands.payment
+- name: KAFKA_PAYMENT_RECOVERY_GROUP
+  value: payment-service-recovery
+- name: KAFKA_PAYMENT_RECOVERY_COMPLETED_TOPIC
+  value: migration.recovery.completed
 - name: STRIPE_SECRET_KEY
   value: {{ default "" $paymentSecrets.stripeSecretKey }}
 - name: STRIPE_FAKE_ENABLED
@@ -56,8 +62,6 @@
   value: {{ default "http://api.ofm.local/v1/freelancer/onboarding/refresh" $stripe.connectRefreshURL }}
 - name: STRIPE_CONNECT_COUNTRY
   value: {{ default "US" $stripe.connectCountry }}
-- name: STRIPE_SKIP_TRANSFERS
-  value: "true"
 - name: METRICS_PORT
   value: "9609"
 - name: TRACING_ENABLED

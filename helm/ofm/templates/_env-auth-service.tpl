@@ -20,10 +20,14 @@
   value: {{ include "ofm.kafkaHost" . }}:9092
 - name: KAFKA_AUTH_GROUP_ID
   value: auth-service
+- name: KAFKA_AUTH_RECOVERY_TOPIC
+  value: migration.recovery.commands.auth
+- name: KAFKA_AUTH_RECOVERY_GROUP
+  value: auth-service-recovery
+- name: KAFKA_AUTH_RECOVERY_COMPLETED_TOPIC
+  value: migration.recovery.completed
 - name: KAFKA_AUTH_DLQ_TOPIC
   value: auth-service.dead-letter
-- name: NATS_URL
-  value: nats://{{ include "ofm.natsHost" . }}:4222
 - name: NATS_USER
   value: ""
 - name: NATS_PASSWORD
@@ -89,11 +93,11 @@
 - name: METRICS_PORT
   value: "9601"
 - name: JWT_ACCESS_SECRET
-  value: aa96fae1a6eee39b879dad6b6bb372e63278257bf9f94010bc7d25693f61e38c
+  value: {{ required "global.jwt.accessSecret is required" .Values.global.jwt.accessSecret | quote }}
 - name: JWT_REFRESH_SECRET
   value: 0f91f8d603f2f8d70b7b5e04b57c0b7d4e3e0e1ce25a2d24f7b3c1b8a7b7f5a2
 - name: JWT_ISSUER
-  value: ofm-auth-service
+  value: {{ .Values.global.jwt.issuer | quote }}
 - name: JWT_ACCESS_TOKEN_TTL
   value: 15m
 - name: JWT_REFRESH_TOKEN_TTL

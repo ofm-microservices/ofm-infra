@@ -8,34 +8,20 @@
   value: {{ include "ofm.kafkaHost" . }}:9092
 - name: KAFKA_REGISTRATION_GROUP_ID
   value: registration-saga-service
-- name: NATS_URL
-  value: nats://{{ include "ofm.natsHost" . }}:4222
 - name: NATS_USER
   value: ""
 - name: NATS_PASSWORD
   value: ""
-- name: SCYLLA_HOSTS
+- name: DB_HOST
   value: {{ $host }}
-- name: SCYLLA_PORT
-  value: "9042"
-- name: SCYLLA_KEYSPACE
-  value: registration_saga_service
-- name: SCYLLA_USERNAME
+- name: DB_PORT
+  value: "5442"
+- name: DB_USER
   value: admin
-- name: SCYLLA_PASSWORD
+- name: DB_PASSWORD
   value: admin
-- name: SCYLLA_CONSISTENCY
-  value: quorum
-- name: SCYLLA_CONNECT_TIMEOUT
-  value: 10s
-- name: SCYLLA_MAX_WAIT_SCHEMA_AGREEMENT
-  value: 30s
-- name: SCYLLA_RETRY_ATTEMPTS
-  value: "20"
-- name: SCYLLA_RETRY_BACKOFF
-  value: 2s
-- name: SCYLLA_NUM_CONNS
-  value: "64"
+- name: DB_NAME
+  value: registration_saga
 - name: NATS_STREAM_REGISTRATION_EVENTS
   value: REGISTRATION_EVENTS
 - name: NATS_STREAM_USER_EVENTS
@@ -45,11 +31,11 @@
 - name: NATS_STREAM_MAIL_EVENTS
   value: MAIL_EVENTS
 - name: NATS_SUBJECT_REGISTRATION_CODE_SENT
-  value: registration.code.sent
+  value: migration.registration.code.sent
 - name: NATS_SUBJECT_REGISTRATION_COMPLETED
-  value: registration.completed
+  value: migration.registration.completed
 - name: NATS_SUBJECT_REGISTRATION_FAILED
-  value: registration.failed
+  value: migration.registration.failed
 - name: NATS_SUBJECT_SAGA_CREATE_USER
   value: saga.user.create
 - name: NATS_SUBJECT_SAGA_CREATE_USER_RESULT

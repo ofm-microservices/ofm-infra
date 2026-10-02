@@ -26,6 +26,12 @@ spec:
         {{- include "ofm.labels" $ | nindent 8 }}
       annotations:
         linkerd.io/inject: enabled
+        # Make the injected proxy visible to the resource metrics API. Without
+        # requests, CPU-based HPAs report missing metrics after node recovery.
+        config.linkerd.io/proxy-cpu-request: 25m
+        config.linkerd.io/proxy-cpu-limit: 250m
+        config.linkerd.io/proxy-memory-request: 32Mi
+        config.linkerd.io/proxy-memory-limit: 128Mi
         {{- if $.Values.global.linkerd.skipOutboundPorts }}
         config.linkerd.io/skip-outbound-ports: "{{ $.Values.global.linkerd.skipOutboundPorts }}"
         {{- else if $.Values.global.nats.skipLinkerdOutbound }}
@@ -57,20 +63,24 @@ spec:
             {{- end }}
           resources:
             requests:
-              cpu: {{ if eq $name "registration-saga-service" }}100m{{ else }}50m{{ end }}
-              memory: {{ if eq $name "registration-saga-service" }}256Mi{{ else }}128Mi{{ end }}
+              cpu: {{ if eq $name "monolith" }}250m{{ else if eq $name "registration-saga-service" }}100m{{ else }}50m{{ end }}
+              memory: {{ if eq $name "monolith" }}512Mi{{ else if or (eq $name "registration-saga-service") (eq $name "gig-service") }}256Mi{{ else }}128Mi{{ end }}
             limits:
-              cpu: {{ if eq $name "registration-saga-service" }}1000m{{ else }}500m{{ end }}
-              memory: {{ if eq $name "registration-saga-service" }}512Mi{{ else }}256Mi{{ end }}
+              cpu: {{ if or (eq $name "monolith") (eq $name "registration-saga-service") }}1000m{{ else }}500m{{ end }}
+              memory: {{ if eq $name "monolith" }}1Gi{{ else if eq $name "registration-saga-service" }}512Mi{{ else if eq $name "gig-service" }}768Mi{{ else if eq $name "payment-service" }}512Mi{{ else }}256Mi{{ end }}
           env:
+            - name: APP_OBSERVABILITY_MODE
+              value: {{ $.Values.global.observabilityMode | default "production" | quote }}
             - name: RETRY_ENABLED
               value: "true"
             - name: RETRY_MAX_ATTEMPTS
-              value: "5"
+              value: "9"
             - name: RETRY_INITIAL_BACKOFF
-              value: 100ms
+              value: 1s
             - name: RETRY_MAX_BACKOFF
-              value: 30s
+              value: 5m
+            - name: RETRY_BACKOFF_SCHEDULE
+              value: "1s,5s,10s,30s,1m,2m,3m,5m"
             - name: DLQ_ENABLED
               value: "true"
             - name: CIRCUIT_BREAKER_ENABLED
@@ -80,7 +90,9 @@ spec:
             - name: CIRCUIT_BREAKER_RESET_TIMEOUT
               value: 30s
             - name: CIRCUIT_BREAKER_CALL_TIMEOUT
-              value: 15s
+              # A dead dependency must fail before the public HTTP deadline so
+              # the gateway can execute its compatibility fallback.
+              value: 4s
             {{- include "ofm.serviceEnv" (dict "serviceName" $name "Values" $.Values "Release" $.Release) | nindent 12 }}
 ---
 {{- end }}
