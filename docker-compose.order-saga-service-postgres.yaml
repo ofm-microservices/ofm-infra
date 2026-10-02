@@ -1,0 +1,23 @@
+name: ofm-infra
+services:
+  order-saga-service-postgres:
+    image: postgres:17
+    container_name: ofm-order-saga-service-postgres
+    hostname: order-saga-service-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: order_saga
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5441:5432"
+    volumes:
+      - order_saga_service_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d order_saga"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+volumes:
+  order_saga_service_postgres_data:
+    name: infra_order_saga_service_postgres_data

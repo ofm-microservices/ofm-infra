@@ -1,0 +1,22 @@
+{
+  "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+  "tasks.max": "1",
+  "database.hostname": "host.docker.internal",
+  "database.port": "5439",
+  "database.user": "admin",
+  "database.password": "admin",
+  "database.dbname": "ofm_monolith",
+  "database.server.name": "cdc.monolith",
+  "topic.prefix": "cdc.monolith",
+  "plugin.name": "pgoutput",
+  "publication.name": "ofm_monolith_cdc",
+  "publication.autocreate.mode": "filtered",
+  "slot.name": "ofm_monolith_cdc_v4",
+  "table.include.list": "public.migration_fallback_outbox",
+  "snapshot.mode": "initial",
+  "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "key.converter.schemas.enable": "false",
+  "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "value.converter.schemas.enable": "false",
+  "tombstones.on.delete": "false"
+}

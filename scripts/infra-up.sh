@@ -4,22 +4,8 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${script_dir}/infra-builder.sh"
 
-compose_cmd="$(infra::compose docker-compose.nats.yaml docker-compose.user-service.yaml docker-compose.auth-service.yaml docker-compose.gig-service.yaml docker-compose.registration-saga-service.yaml docker-compose.order-saga-service.yaml docker-compose.order-service.yaml docker-compose.payment-service.yaml docker-compose.review-service.yaml docker-compose.search-service.yaml docker-compose.file-service.yaml docker-compose.chat-service.yaml)"
+compose_cmd="$(infra::compose docker-compose.postgres.yaml docker-compose.search-service.yaml docker-compose.migration.yaml docker-compose.monolith.yaml)"
 
 set -- ${compose_cmd}
 
-init_containers=(
-  "$(infra::container_name user-service-yugabyte-init)"
-  "$(infra::container_name auth-service-yugabyte-init)"
-  "$(infra::container_name gig-service-yugabyte-init)"
-  "$(infra::container_name registration-saga-service-scylla-init)"
-  "$(infra::container_name order-saga-service-scylla-init)"
-  "$(infra::container_name order-service-yugabyte-init)"
-  "$(infra::container_name payment-service-yugabyte-init)"
-  "$(infra::container_name review-service-yugabyte-init)"
-  "$(infra::container_name file-service-scylla-init)"
-  "$(infra::container_name chat-service-scylla-init)"
-)
-
-infra::wait_all_exited "${init_containers[@]}"
-infra::rm_containers "${init_containers[@]}"
+echo "PostgreSQL containers use healthchecks; application containers run their own migrations."

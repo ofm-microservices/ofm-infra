@@ -14,25 +14,147 @@ services:
 
   kafka:
     image: apache/kafka:3.9.0
+    # Kafka is the shared recovery/CDC backbone. 512 MiB caused broker
+    # restarts during a full-system run while Connect and the bridges were
+    # reconnecting. Keep the host bounded, but leave enough headroom for the
+    # broker page cache and request buffers.
+    # The local broker currently owns many compacted topic partitions. Keep
+    # the JVM heap bounded while leaving enough native memory for partition
+    # metadata and network buffers.
+    mem_limit: 768m
+    cpus: "0.75"
     container_name: ofm-migration-kafka
     restart: unless-stopped
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_LISTENERS: INTERNAL://:19092,EXTERNAL://:9092,CONTROLLER://:9093
       # k3d workloads connect through the Docker host bridge, not the
       # compose-only `kafka` DNS name.
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://172.22.0.1:9092
+      # Kafka metadata is consumed both by Compose and k3d pods. Keep the
+      # internal Docker listener and advertise the stable k3d host alias for
+      # clients that enter through the published port.
+      # Use the Docker bridge gateway for the externally advertised endpoint.
+      # host.k3d.internal is injected into k3d pods, but is not resolvable by
+      # Docker-side Kafka tooling and causes admin clients/reconnectors to loop.
+      # Compose clients use INTERNAL; k3d pods use the stable host gateway.
+      # Advertising a Docker bridge IP breaks every k3d Kafka consumer after a
+      # host restart because that address is not routable from the cluster.
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:19092,EXTERNAL://${KAFKA_EXTERNAL_HOST:-172.22.0.10}:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_DELETE_TOPIC_ENABLE: "true"
+      KAFKA_HEAP_OPTS: -Xms128m -Xmx256m
     ports:
       - "9092:9092"
+      # Expose the internal listener to k3d pods through host.k3d.internal.
+      # Services that need stable in-network Kafka metadata can use 19092.
+      - "19092:19092"
+    networks:
+      default: {}
+      k3d-ofm:
+        ipv4_address: 172.22.0.10
+    volumes:
+      - migration_kafka_data:/var/lib/kafka/data
+    healthcheck:
+      # Listing every topic can take minutes while the local broker loads its
+      # compacted partitions after a host restart. Readiness only needs the
+      # listener to accept connections; Connect performs the protocol-level
+      # retry before it starts.
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/19092' >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+
+  kafka-topic-init:
+    image: apache/kafka:3.9.0
+    container_name: ofm-migration-kafka-topic-init
+    # This is a one-shot, idempotent bootstrap. Kafka topics are durable in
+    # migration_kafka_data; keeping this container alive would turn expected
+    # "already exists"/partition mismatch responses into a busy retry loop.
+    restart: "no"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        until /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --list >/dev/null 2>&1; do sleep 2; done
+        ensure_topic() {
+          topic="$1"
+          partitions="$2"
+          cleanup="$3"
+          if /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --describe --topic "$${topic}" >/dev/null 2>&1; then
+            # Topics may have been auto-created before the bootstrap job ran.
+            # Connect refuses to start when its compacted state topic already
+            # exists with cleanup.policy=delete, so reconcile the policy too.
+            if [ "$${cleanup}" = "compact" ]; then
+              /opt/kafka/bin/kafka-configs.sh --bootstrap-server kafka:19092 --alter --entity-type topics --entity-name "$${topic}" --add-config cleanup.policy=compact >/dev/null || true
+            fi
+            current_partitions="$$(/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --describe --topic "$${topic}" 2>/dev/null | awk -F'PartitionCount: ' 'NR==1 {split($$2,a," "); print a[1]}')"
+            if [ -n "$${current_partitions}" ] && [ "$${current_partitions}" -lt "$${partitions}" ]; then
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --alter --topic "$${topic}" --partitions "$${partitions}" >/dev/null || true
+            fi
+            return 0
+          fi
+          # A broker can accept metadata requests before it is ready to
+          # create every topic after a host restart. Retry this topic locally
+          # instead of aborting the one-shot initializer halfway through the
+          # topic list.
+          for attempt in $$(seq 1 30); do
+            if [ "$${cleanup}" = "compact" ]; then
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --create --topic "$${topic}" --partitions "$${partitions}" --replication-factor 1 --config cleanup.policy=compact >/dev/null 2>&1 && return 0
+            else
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --create --topic "$${topic}" --partitions "$${partitions}" --replication-factor 1 >/dev/null 2>&1 && return 0
+            fi
+            sleep 2
+          done
+          echo "topic reconciliation deferred: $${topic}" >&2
+          return 0
+        }
+        # Kafka Connect's distributed worker uses the exact topic names from
+        # migration/debezium-server/distributed.properties.  Create them
+        # explicitly before Connect starts; otherwise Kafka auto-creates a
+        # delete-policy offsets topic and Connect refuses to boot after a
+        # host restart.
+        for topic in ofm-connect-configs ofm-connect-offsets ofm-connect-status ofm-monolith-connect-configs ofm-monolith-connect-offsets ofm-monolith-connect-status; do
+          ensure_topic "$${topic}" 1 compact || true
+        done
+        for topic in \
+          cdc.monolith.public.migration_fallback_outbox \
+          saga.user.create saga.user.create.result \
+          saga.auth.create_pending_registration saga.auth.create_pending_registration.result \
+          mail.send mail.send.result realtime migration.chat-service.chat.changed migration.registration.code.sent migration.registration.completed migration.registration.failed \
+          migration.recovery.commands migration.recovery.commands.dlq migration.recovery.completed \
+          migration.recovery.commands.gig migration.recovery.commands.user migration.recovery.commands.auth \
+          migration.recovery.commands.chat migration.recovery.commands.file migration.recovery.commands.order migration.recovery.commands.orders \
+          migration.recovery.commands.payment migration.recovery.commands.review \
+          migration.recovery.commands.order_saga migration.recovery.commands.registration \
+          chat.create chat.close \
+          order.create order.create.result order.confirm order.fail \
+          order.projection.preview order.projection.requirements order.projection.delivery \
+          order.saga.start order.release.request order.funded order.delivered \
+          order.revision_requested order.disputed order.dispute_resolved order.completed order.release_failed \
+          payment.intent payment.intent.result payment.webhook payment.order_payment_succeeded payment.order_payment_failed \
+          payment.release_funds payment.projection \
+          realtime.order.accepted realtime.payment.ready realtime.order.confirmed realtime.order.failed \
+          user.detailed.requested user.detailed.projection.requested \
+          saga.user.delete saga.user.delete.result saga.auth.delete saga.auth.delete.result \
+          mail.send.result chat.dead-letter file-service.dead-letter; do
+          ensure_topic "$${topic}" 16 || true
+        done
+        for topic in gig.created gig.updated gig.published gig.viewed gig.projection.requested gig.preview.projection.requested; do
+          ensure_topic "$${topic}" 16 || true
+        done
+        for topic in auth-service.dead-letter chat-service.dead-letter gig-service.dead-letter order-service.dead-letter order.saga.dead_letter migration.dead-letter; do
+          ensure_topic "$${topic}" 4 || true
+        done
 
   migration-schema-registry:
     image: apicurio/apicurio-registry:3.1.2
@@ -48,3 +170,8 @@ services:
 
 volumes:
   migration_redis_data:
+  migration_kafka_data:
+
+networks:
+  k3d-ofm:
+    external: true

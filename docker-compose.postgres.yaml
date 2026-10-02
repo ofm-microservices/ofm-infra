@@ -1,0 +1,164 @@
+name: ofm-infra
+
+services:
+  user-service-redis:
+    image: redis:8-alpine
+    container_name: ofm-user-service-redis
+    restart: unless-stopped
+    ports: ["6379:6379"]
+    volumes: [user_service_redis_data:/data]
+  gig-service-redis:
+    image: redis:8-alpine
+    container_name: ofm-gig-service-redis
+    restart: unless-stopped
+    ports: ["6380:6379"]
+    volumes: [gig_service_redis_data:/data]
+  order-service-redis:
+    image: redis:8-alpine
+    container_name: ofm-order-service-redis
+    restart: unless-stopped
+    ports: ["6382:6379"]
+    volumes: [order_service_redis_data:/data]
+  payment-service-redis:
+    image: redis:8-alpine
+    container_name: ofm-payment-service-redis
+    restart: unless-stopped
+    ports: ["6381:6379"]
+    volumes: [payment_service_redis_data:/data]
+  review-service-redis:
+    image: redis:8-alpine
+    container_name: ofm-review-service-redis
+    restart: unless-stopped
+    ports: ["6384:6379"]
+    volumes: [review_service_redis_data:/data]
+  file-service-rustfs:
+    image: rustfs/rustfs:latest
+    container_name: ofm-file-service-rustfs
+    restart: unless-stopped
+    command: ["/data"]
+    environment:
+      RUSTFS_ACCESS_KEY: rustfsadmin
+      RUSTFS_SECRET_KEY: rustfsadmin
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "9006:9000"
+      - "9007:9001"
+    volumes: [file_service_rustfs_data:/data]
+  user-service-postgres:
+    image: postgres:17
+    container_name: ofm-user-service-postgres
+    hostname: user-service-postgres
+    restart: unless-stopped
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
+    environment: {POSTGRES_DB: user_service, POSTGRES_USER: admin, POSTGRES_PASSWORD: admin}
+    ports: ["5433:5432"]
+    volumes: [user_service_postgres_data:/var/lib/postgresql/data]
+    healthcheck: {test: [CMD-SHELL, pg_isready -U admin -d user_service], interval: 5s, timeout: 3s, retries: 20}
+  auth-service-postgres:
+    image: postgres:17
+    container_name: ofm-auth-service-postgres
+    hostname: auth-service-postgres
+    restart: unless-stopped
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
+    environment: {POSTGRES_DB: auth_service, POSTGRES_USER: admin, POSTGRES_PASSWORD: admin}
+    ports: ["5434:5432"]
+    volumes: [auth_service_postgres_data:/var/lib/postgresql/data]
+    healthcheck: {test: [CMD-SHELL, pg_isready -U admin -d auth_service], interval: 5s, timeout: 3s, retries: 20}
+  gig-service-postgres:
+    image: postgres:17
+    container_name: ofm-gig-service-postgres
+    hostname: gig-service-postgres
+    restart: unless-stopped
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
+    environment: {POSTGRES_DB: gig_service, POSTGRES_USER: admin, POSTGRES_PASSWORD: admin}
+    ports: ["5435:5432"]
+    volumes: [gig_service_postgres_data:/var/lib/postgresql/data]
+    healthcheck: {test: [CMD-SHELL, pg_isready -U admin -d gig_service], interval: 5s, timeout: 3s, retries: 20}
+  order-service-postgres:
+    image: postgres:17
+    container_name: ofm-order-service-postgres
+    hostname: order-service-postgres
+    restart: unless-stopped
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
+    environment: {POSTGRES_DB: order_service, POSTGRES_USER: admin, POSTGRES_PASSWORD: admin}
+    ports: ["5436:5432"]
+    volumes: [order_service_postgres_data:/var/lib/postgresql/data]
+    healthcheck: {test: [CMD-SHELL, pg_isready -U admin -d order_service], interval: 5s, timeout: 3s, retries: 20}
+  payment-service-postgres:
+    image: postgres:17
+    container_name: ofm-payment-service-postgres
+    hostname: payment-service-postgres
+    restart: unless-stopped
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
+    environment: {POSTGRES_DB: payment_service, POSTGRES_USER: admin, POSTGRES_PASSWORD: admin}
+    ports: ["5437:5432"]
+    volumes: [payment_service_postgres_data:/var/lib/postgresql/data]
+    healthcheck: {test: [CMD-SHELL, pg_isready -U admin -d payment_service], interval: 5s, timeout: 3s, retries: 20}
+  chat-service-postgres:
+    image: postgres:17
+    container_name: ofm-chat-service-postgres
+    hostname: chat-service-postgres
+    restart: unless-stopped
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
+    environment: {POSTGRES_DB: chat_service, POSTGRES_USER: admin, POSTGRES_PASSWORD: admin}
+    ports: ["5438:5432"]
+    volumes: [chat_service_postgres_data:/var/lib/postgresql/data]
+    healthcheck: {test: [CMD-SHELL, pg_isready -U admin -d chat_service], interval: 5s, timeout: 3s, retries: 20}
+  review-service-postgres:
+    image: postgres:17
+    container_name: ofm-review-service-postgres
+    hostname: review-service-postgres
+    restart: unless-stopped
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
+    environment: {POSTGRES_DB: review_service, POSTGRES_USER: admin, POSTGRES_PASSWORD: admin}
+    ports: ["5443:5432"]
+    volumes: [review_service_postgres_data:/var/lib/postgresql/data]
+    healthcheck: {test: [CMD-SHELL, pg_isready -U admin -d review_service], interval: 5s, timeout: 3s, retries: 20}
+  file-service-postgres:
+    image: postgres:17
+    container_name: ofm-file-service-postgres
+    hostname: file-service-postgres
+    restart: unless-stopped
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
+    environment: {POSTGRES_DB: file_service, POSTGRES_USER: admin, POSTGRES_PASSWORD: admin}
+    ports: ["5440:5432"]
+    volumes: [file_service_postgres_data:/var/lib/postgresql/data]
+    healthcheck: {test: [CMD-SHELL, pg_isready -U admin -d file_service], interval: 5s, timeout: 3s, retries: 20}
+  order-saga-service-postgres:
+    image: postgres:17
+    container_name: ofm-order-saga-service-postgres
+    hostname: order-saga-service-postgres
+    restart: unless-stopped
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
+    environment: {POSTGRES_DB: order_saga, POSTGRES_USER: admin, POSTGRES_PASSWORD: admin}
+    ports: ["5441:5432"]
+    volumes: [order_saga_service_postgres_data:/var/lib/postgresql/data]
+    healthcheck: {test: [CMD-SHELL, pg_isready -U admin -d order_saga], interval: 5s, timeout: 3s, retries: 20}
+  registration-saga-service-postgres:
+    image: postgres:17
+    container_name: ofm-registration-saga-service-postgres
+    hostname: registration-saga-service-postgres
+    restart: unless-stopped
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
+    environment: {POSTGRES_DB: registration_saga, POSTGRES_USER: admin, POSTGRES_PASSWORD: admin}
+    ports: ["5442:5432"]
+    volumes: [registration_saga_service_postgres_data:/var/lib/postgresql/data]
+    healthcheck: {test: [CMD-SHELL, pg_isready -U admin -d registration_saga], interval: 5s, timeout: 3s, retries: 20}
+
+volumes:
+  user_service_redis_data: {name: infra_user_service_redis_data}
+  gig_service_redis_data: {name: infra_gig_service_redis_data}
+  order_service_redis_data: {name: infra_order_service_redis_data}
+  payment_service_redis_data: {name: infra_payment_service_redis_data}
+  review_service_redis_data: {name: infra_review_service_redis_data}
+  file_service_rustfs_data: {name: infra_file_service_rustfs_data}
+  user_service_postgres_data: {name: infra_user_service_postgres_data}
+  auth_service_postgres_data: {name: infra_auth_service_postgres_data}
+  gig_service_postgres_data: {name: infra_gig_service_postgres_data}
+  order_service_postgres_data: {name: infra_order_service_postgres_data}
+  payment_service_postgres_data: {name: infra_payment_service_postgres_data}
+  chat_service_postgres_data: {name: infra_chat_service_postgres_data}
+  review_service_postgres_data: {name: infra_review_service_postgres_data}
+  file_service_postgres_data: {name: infra_file_service_postgres_data}
+  order_saga_service_postgres_data: {name: infra_order_saga_service_postgres_data}
+  registration_saga_service_postgres_data: {name: infra_registration_saga_service_postgres_data}

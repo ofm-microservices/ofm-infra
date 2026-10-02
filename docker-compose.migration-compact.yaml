@@ -3,16 +3,76 @@ name: ofm-infra
 # Resource-constrained migration runtime.  One Kafka Connect/Debezium worker
 # hosts the source connectors and one bridge consumes all CDC topics.
 services:
-  migration-debezium:
-    image: quay.io/yugabyte/debezium-connector:latest
-    container_name: ofm-migration-debezium
+  migration-monolith-debezium:
+    image: debezium/connect:2.7.3.Final
+    container_name: ofm-migration-monolith-debezium
     restart: unless-stopped
+    # Bound CDC recovery so a PostgreSQL connection failure cannot consume the host.
     mem_limit: 768m
-    cpus: "1.00"
+    cpus: "0.50"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      - "host.k3d.internal:host-gateway"
     environment:
-      KAFKA_HEAP_OPTS: -Xms128m -Xmx512m
+      BOOTSTRAP_SERVERS: kafka:19092
+      # Keep the Connect JVM below the container limit. Without an explicit
+      # heap cap the worker can be OOM-killed during Kafka recovery and the
+      # wrapper below would otherwise wait forever for port 8083.
+      KAFKA_HEAP_OPTS: -Xms128m -Xmx384m
+      GROUP_ID: ofm-monolith-cdc
+      CONFIG_STORAGE_TOPIC: ofm-monolith-connect-configs
+      OFFSET_STORAGE_TOPIC: ofm-monolith-connect-offsets
+      STATUS_STORAGE_TOPIC: ofm-monolith-connect-status
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_REST_ADVERTISED_HOST_NAME: migration-monolith-debezium
+      CONNECT_PLUGIN_PATH: /kafka/connect,/kafka/connectors
+    depends_on:
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./migration/debezium-postgres/monolith-connector.json:/monolith-connector.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8083/connectors >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - |
+        /docker-entrypoint.sh start &
+        worker=$$!
+        until curl -fsS http://127.0.0.1:8083/connectors >/dev/null; do
+          if ! kill -0 "$$worker" 2>/dev/null; then
+            echo "Debezium Connect worker exited before REST API became ready" >&2
+            wait "$$worker"
+          fi
+          sleep 2
+        done
+        curl -fsS -X PUT http://127.0.0.1:8083/connectors/monolith-fallback-cdc-v4/config -H 'Content-Type: application/json' --data-binary @/monolith-connector.json
+        wait $$worker
+
+  migration-debezium:
+    image: debezium/connect:2.7.3.Final
+    container_name: ofm-migration-debezium
+    ports:
+      - "18083:8083"
+    restart: unless-stopped
+    # One worker hosts all service CDC connectors. 512 MiB is insufficient
+    # during connector startup/snapshot and causes the worker to OOM-kill its
+    # producer threads while still passing the shallow REST health probe.
+    mem_limit: 1g
+    cpus: "1.00"
+    extra_hosts:
+      - "host.k3d.internal:host-gateway"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx768m
       KAFKA_OPTS: -Djava.awt.headless=true
-      KAFKA_BROKERS: kafka:9092
+      KAFKA_BROKERS: kafka:19092
       CONNECT_REST_PORT: 8083
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8083/ >/dev/null"]
@@ -20,72 +80,151 @@ services:
       timeout: 5s
       retries: 12
     volumes:
-      - ./migration/debezium-server/application.properties:/opt/kafka/config/connect-standalone.properties:ro
-      - ./migration/debezium-server:/opt/kafka/config/ofm-connectors:ro
-      - migration_debezium_data:/opt/kafka/data
-      - ./migration/debezium-server/distributed.properties:/opt/kafka/config/distributed.properties:ro
-      - ./migration/debezium-server/register-connectors.sh:/opt/kafka/config/register-connectors.sh:ro
+      - ./migration/debezium-server/application.properties:/kafka/config/connect-standalone.properties:ro
+      - ./migration/debezium-server:/kafka/config/ofm-connectors:ro
+      - migration_debezium_data:/kafka/data
+      - ./migration/debezium-server/distributed.properties:/kafka/config/distributed.properties:ro
+      - ./migration/debezium-server/register-connectors.sh:/kafka/config/register-connectors.sh:ro
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
-        cp -rn /opt/kafka/config.orig/* /opt/kafka/config/ || true
-        /opt/kafka/bin/connect-distributed.sh /opt/kafka/config/distributed.properties &
+        until /kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --list >/dev/null 2>&1; do sleep 2; done
+        /kafka/bin/connect-distributed.sh /kafka/config/distributed.properties &
         worker=$$!
-        sh /opt/kafka/config/register-connectors.sh
+        sh /kafka/config/register-connectors.sh
         wait $$worker
 
-  migration-bridge:
+  migration-cdc-reconciler:
+    image: debezium/connect:2.7.3.Final
+    container_name: ofm-migration-cdc-reconciler
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: "0.25"
+    depends_on:
+      migration-debezium:
+        condition: service_healthy
+    volumes:
+      - ./migration/debezium-server:/kafka/config/ofm-connectors:ro
+      - ./migration/debezium-server/reconcile-connectors.sh:/kafka/config/reconcile-connectors.sh:ro
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - |
+        exec /bin/bash /kafka/config/reconcile-connectors.sh
+
+  migration-health-exporter:
     build:
-      context: ..
-      dockerfile: ofm-migration-bridge/Dockerfile
+      context: observability/migration-health-exporter
+    image: ofm/migration-health-exporter:5c984a331858
+    container_name: ofm-migration-health-exporter
+    restart: unless-stopped
+    mem_limit: 64m
+    cpus: "0.10"
+    environment:
+      CONNECT_URL: http://migration-debezium:8083
+      BRIDGE_URLS: http://migration-bridge:9607,http://migration-recovery-bridge-live:9608
+    ports:
+      - "9615:9615"
+    depends_on:
+      - migration-debezium
+      - migration-bridge
+      - migration-recovery-bridge-live
+
+  migration-bridge:
+    image: ofm/migration-bridge:5c984a331858
     container_name: ofm-migration-bridge
     restart: unless-stopped
     mem_limit: 256m
     cpus: "0.50"
+    extra_hosts:
+      - "host.k3d.internal:host-gateway"
     environment:
-      MIGRATION_KAFKA_BROKERS: kafka:9092
+      APP_OBSERVABILITY_MODE: dev
+      MIGRATION_KAFKA_BROKERS: kafka:19092
       MIGRATION_KAFKA_SOURCE_TOPICS: cdc.auth.public.outbox_events,cdc.user.public.outbox_events,cdc.gig.public.outbox_events,cdc.order.public.outbox_events,cdc.payment.public.outbox_events,cdc.review.public.outbox_events
       MIGRATION_KAFKA_CONSUMER_GROUP: migration-bridge-all
       MIGRATION_SCHEMA_REGISTRY_URL: http://migration-schema-registry:8080/apis/registry/v3
+      MIGRATION_METRICS_ADDRESS: :9607
+    ports:
+      - "9607:9607"
     depends_on:
-      - migration-schema-registry
+      migration-schema-registry:
+        condition: service_started
+      kafka-topic-init:
+        condition: service_started
+      kafka:
+        condition: service_healthy
 
-  migration-scylla-cdc:
-    build:
-      context: ./migration/scylla-cdc
-    container_name: ofm-migration-scylla-cdc
-    restart: unless-stopped
-    mem_limit: 512m
-    cpus: "0.75"
-    environment:
-      KAFKA_HEAP_OPTS: -Xms64m -Xmx256m
-      KAFKA_OPTS: -Djava.awt.headless=true
-    volumes:
-      - migration_scylla_cdc_data:/opt/kafka/data
-    entrypoint: ["/bin/sh", "-ec"]
-    command:
-      - |
-        /opt/kafka/bin/connect-distributed.sh /opt/kafka/config/distributed.properties &
-        worker=$$!
-        sh /opt/kafka/config/register-connectors.sh
-        wait $$worker
-
-  migration-scylla-bridge:
+  migration-recovery-bridge:
+    profiles: [legacy-recovery]
     build:
       context: ..
       dockerfile: ofm-migration-bridge/Dockerfile
-    container_name: ofm-migration-scylla-bridge
+    container_name: ofm-migration-recovery-bridge
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.50"
+    extra_hosts:
+      - "host.k3d.internal:host-gateway"
+    environment:
+      MIGRATION_KAFKA_BROKERS: kafka:19092
+      MIGRATION_KAFKA_SOURCE_TOPICS: cdc.monolith.public.migration_fallback_outbox
+      MIGRATION_KAFKA_CONSUMER_GROUP: migration-recovery-cdc-v1
+      MIGRATION_SCHEMA_REGISTRY_URL: http://migration-schema-registry:8080/apis/registry/v3
+      MIGRATION_EVENT_PREFIX: migration
+      MIGRATION_METRICS_ADDRESS: :9608
+    ports:
+      - "9608:9608"
+    depends_on:
+      migration-schema-registry:
+        condition: service_started
+      kafka-topic-init:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+
+  # Canonical monolith fallback CDC publisher. One group owns this CDC stream;
+  # service recovery consumers provide the downstream fan-out.
+  migration-recovery-bridge-live:
+    image: ofm/migration-bridge:5c984a331858
+    container_name: ofm-migration-recovery-bridge-live
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.50"
+    extra_hosts:
+      - "host.k3d.internal:host-gateway"
+    environment:
+      MIGRATION_KAFKA_BROKERS: kafka:19092
+      MIGRATION_KAFKA_SOURCE_TOPICS: cdc.monolith.public.migration_fallback_outbox
+      MIGRATION_KAFKA_CONSUMER_GROUP: migration-recovery-cdc-live-v2
+      MIGRATION_SCHEMA_REGISTRY_URL: http://migration-schema-registry:8080/apis/registry/v3
+      MIGRATION_EVENT_PREFIX: migration
+      MIGRATION_METRICS_ADDRESS: :9608
+    ports:
+      - "9608:9608"
+    depends_on:
+      migration-schema-registry:
+        condition: service_started
+      kafka-topic-init:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+
+  migration-postgres-bridge:
+    image: ofm/migration-bridge:5c984a331858
+    container_name: ofm-migration-postgres-bridge
     restart: unless-stopped
     mem_limit: 128m
     cpus: "0.25"
+    extra_hosts:
+      - "host.k3d.internal:host-gateway"
     environment:
-      MIGRATION_KAFKA_BROKERS: kafka:9092
-      MIGRATION_KAFKA_SOURCE_TOPICS: migration-chat.chat_service.chats_by_order,migration-chat.chat_service.chat_messages_by_order,migration-chat.chat_service.chat_messages_by_id,migration-file.file_service.files,migration-order-saga.order_saga.order_saga_sessions,migration-order-saga.order_saga.order_saga_steps,migration-registration-saga.registration_saga_service.registration_sessions,migration-registration-saga.registration_saga_service.registration_sessions_by_email,migration-registration-saga.registration_saga_service.registration_sessions_by_username,migration-registration-saga.registration_saga_service.registration_steps
-      MIGRATION_KAFKA_CONSUMER_GROUP: migration-bridge-scylla-all
+      MIGRATION_KAFKA_BROKERS: kafka:19092
+      MIGRATION_KAFKA_SOURCE_TOPICS: migration-chat.public.outbox_events,migration-file.public.outbox_events,migration-order-saga.public.outbox_events,migration-registration-saga.public.outbox_events
+      MIGRATION_KAFKA_CONSUMER_GROUP: migration-bridge-postgres-all
       MIGRATION_SCHEMA_REGISTRY_URL: http://migration-schema-registry:8080/apis/registry/v3
     depends_on:
       - migration-schema-registry
+      - kafka
 
 volumes:
   migration_debezium_data:
-  migration_scylla_cdc_data:

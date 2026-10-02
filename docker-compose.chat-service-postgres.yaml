@@ -1,0 +1,25 @@
+name: ofm-infra
+
+services:
+  chat-service-postgres:
+    image: postgres:17
+    container_name: ofm-chat-service-postgres
+    hostname: chat-service-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: chat_service
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5438:5432"
+    volumes:
+      - chat_service_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d chat_service"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  chat_service_postgres_data:
+    name: infra_chat_service_postgres_data

@@ -1,0 +1,37 @@
+name: ofm-infra
+
+services:
+  monolith-postgres:
+    image: postgres:17-alpine
+    container_name: ofm-monolith-postgres
+    hostname: monolith-postgres
+    restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_replication_slots=4
+      - -c
+      - max_wal_senders=4
+    environment:
+      POSTGRES_DB: ofm_monolith
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5439:5432"
+    volumes:
+      - monolith_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d ofm_monolith"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  monolith_postgres_data:
+    name: ofm-infra_monolith_postgres_data
+
+networks:
+  default:
+    name: ofm-infra_default

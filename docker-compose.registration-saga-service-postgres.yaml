@@ -1,0 +1,23 @@
+name: ofm-infra
+services:
+  registration-saga-service-postgres:
+    image: postgres:17
+    container_name: ofm-registration-saga-service-postgres
+    hostname: registration-saga-service-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: registration_saga
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5442:5432"
+    volumes:
+      - registration_saga_service_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d registration_saga"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+volumes:
+  registration_saga_service_postgres_data:
+    name: infra_registration_saga_service_postgres_data

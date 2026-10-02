@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-API_BASE_URL="${API_BASE_URL:-http://api.ofm.local/v1}"
+API_BASE_URL="${API_BASE_URL:-http://api.ofm.local/api/v2}"
 COMPLETE_TIMEOUT_SECONDS="${COMPLETE_TIMEOUT_SECONDS:-60}"
 COMPLETE_POLL_SECONDS="${COMPLETE_POLL_SECONDS:-2}"
 LOG_FILE="${LOG_FILE:-registration-log.txt}"
@@ -87,7 +87,7 @@ log "----- OFM registration flow $(date -Is) -----"
 log "Log file: $LOG_FILE"
 log "API base URL: $API_BASE_URL"
 log_blank
-log 'Make sure api-gateway, registration-saga-service, user-service, auth-service, mail-service, NATS, Scylla, and Yugabyte are running.'
+log 'Make sure api-gateway, registration-saga-service, user-service, auth-service, mail-service, Kafka, and PostgreSQL are running.'
 log_blank
 
 if ! curl -sS "${OFM_API_GATEWAY_CURL_ARGS[@]}" --connect-timeout 2 "$API_BASE_URL/auth/sign-up" >/dev/null 2>&1; then

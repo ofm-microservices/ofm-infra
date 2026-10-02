@@ -46,6 +46,12 @@ just infra-all
 just infra-down
 just infra-logs
 just infra-ps
+
+# Start Docker Compose dependencies and the complete k3d release
+just run
+
+# Remove the k3d/Kubernetes cluster and Compose containers, keep volumes
+just down
 ```
 
 ### Stripe onboarding helper
