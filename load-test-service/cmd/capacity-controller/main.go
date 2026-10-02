@@ -45,7 +45,7 @@ func main() {
 			fmt.Printf("capacity reached cpu=%d%% total_rps=%d run_id=%s\n", cpu, max, id)
 			return
 		}
-		if state == "COMPLETED" || state == "FAILED" {
+		if state == "PASS" || state == "FAILED" {
 			break
 		}
 		time.Sleep(1 * time.Second)

@@ -2,7 +2,7 @@
 set -eu
 
 # Loads an already secured, explicitly shaped snapshot into the service-owned
-# Yugabyte databases. The CSV files are staging inputs; they are never emitted
+# PostgreSQL databases. The CSV files are staging inputs; they are never emitted
 # to logs and are removed by the caller according to its retention policy.
 
 command -v psql >/dev/null 2>&1 || { echo "psql is required" >&2; exit 1; }

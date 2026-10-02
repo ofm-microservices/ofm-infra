@@ -20,9 +20,9 @@ FAIL=0
 # migration audit state so stale DLQ/pending rows from an earlier run cannot
 # make a fresh flow fail; business tables and Kafka data are preserved.
 if [[ "${FULL_SYSTEM_E2E_RESET_MIGRATION_AUDIT:-true}" == "true" ]]; then
-  docker exec "${MONOLITH_PROJECTION_DB_CONTAINER:-ofm-user-service-yugabyte}" \
-    ysqlsh -h "${MONOLITH_PROJECTION_DB_HOST:-172.22.0.1}" \
-    -p "${MONOLITH_PROJECTION_DB_PORT:-5433}" -U admin \
+  docker exec "${MONOLITH_PROJECTION_DB_CONTAINER:-ofm-monolith-postgres}" \
+    psql -h "${MONOLITH_PROJECTION_DB_HOST:-127.0.0.1}" \
+    -p "${MONOLITH_PROJECTION_DB_PORT:-5432}" -U admin \
     -d "${MONOLITH_PROJECTION_DB_NAME:-ofm_monolith}" \
     -v ON_ERROR_STOP=1 \
     -c 'TRUNCATE migration_pending_projections; TRUNCATE migration_projection_failures RESTART IDENTITY;' \
@@ -247,12 +247,12 @@ fi
 # Verify that the entities created by the microservice flow also exist in the
 # monolith projection. Kafka delivery is asynchronous, so wait for the exact
 # flow identities instead of relying on a fixed sleep.
-projection_db_container="${MONOLITH_PROJECTION_DB_CONTAINER:-ofm-user-service-yugabyte}"
-projection_db_host="${MONOLITH_PROJECTION_DB_HOST:-172.22.0.1}"
-projection_db_port="${MONOLITH_PROJECTION_DB_PORT:-5433}"
+projection_db_container="${MONOLITH_PROJECTION_DB_CONTAINER:-ofm-monolith-postgres}"
+projection_db_host="${MONOLITH_PROJECTION_DB_HOST:-127.0.0.1}"
+projection_db_port="${MONOLITH_PROJECTION_DB_PORT:-5432}"
 projection_db_name="${MONOLITH_PROJECTION_DB_NAME:-ofm_monolith}"
 projection_sql() {
-  timeout 5s docker exec "$projection_db_container" ysqlsh -h "$projection_db_host" -p "$projection_db_port" -U admin -d "$projection_db_name" -At -v ON_ERROR_STOP=1 -c "$1" 2>/dev/null || printf 'database_unavailable'
+  timeout 5s docker exec "$projection_db_container" psql -h "$projection_db_host" -p "$projection_db_port" -U admin -d "$projection_db_name" -At -v ON_ERROR_STOP=1 -c "$1" 2>/dev/null || printf 'database_unavailable'
 }
 
 projection_check=fail

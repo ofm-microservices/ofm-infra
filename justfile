@@ -1,21 +1,38 @@
 set shell := ["zsh", "-cu"]
 set dotenv-load := true
 
-compose := "docker compose -f docker-compose.nats.yaml -f docker-compose.user-service.yaml -f docker-compose.auth-service.yaml -f docker-compose.gig-service.yaml -f docker-compose.registration-saga-service.yaml -f docker-compose.order-saga-service.yaml -f docker-compose.order-service.yaml -f docker-compose.payment-service.yaml -f docker-compose.review-service.yaml -f docker-compose.search-service.yaml -f docker-compose.file-service.yaml -f docker-compose.chat-service.yaml -f docker-compose.migration.yaml"
+compose := "docker compose -f docker-compose.postgres.yaml -f docker-compose.search-service.yaml -f docker-compose.migration.yaml -f docker-compose.monolith.yaml"
 asyncapi_compose := "docker compose -f docker-compose.asyncapi.yaml"
 swagger_compose := "docker compose -f docker-compose.swagger.yaml"
 grpc_docs_compose := "docker compose -f docker-compose.grpc-docs.yaml"
 sonarqube_compose := "docker compose -f docker-compose.sonarqube.yaml"
+mail_realtime_compose := "docker compose -f docker-compose.mail-realtime.yaml"
+migration_compose := "docker compose -f docker-compose.migration.yaml -f docker-compose.migration-compact.yaml"
 
 infra-up:
     {{compose}} up -d --force-recreate --remove-orphans
+    {{mail_realtime_compose}} up -d --force-recreate --remove-orphans
+    {{migration_compose}} up -d --build --force-recreate
     bash ./scripts/infra-up.sh
+
+# Start the complete local stack: Docker Compose dependencies first, then k3d.
+run:
+    just infra-up
+    just k3d-build-up
+
+# Tear down Kubernetes/k3d and Compose containers while preserving volumes.
+down:
+    just k3d-down
+    just infra-down
 
 infra-all:
     {{compose}} up -d --force-recreate --remove-orphans
+    {{migration_compose}} up -d --build --force-recreate
 
 infra-down:
     {{compose}} down --remove-orphans
+    {{mail_realtime_compose}} down --remove-orphans
+    {{migration_compose}} down
 
 infra-volumes-delete-all:
     test "$CONFIRM_DELETE_OFM_VOLUMES" = "yes"
@@ -26,28 +43,28 @@ infra-volumes-delete-all:
     {{sonarqube_compose}} down -v --remove-orphans
 
 file-service-up:
-    {{compose}} up -d file-service-scylla file-service-scylla-init file-service-rustfs
+    {{compose}} up -d file-service-postgres file-service-rustfs
 
 file-service-down:
-    {{compose}} stop file-service-scylla file-service-rustfs
+    {{compose}} stop file-service-postgres file-service-rustfs
 
 file-service-logs:
-    {{compose}} logs -f file-service-scylla file-service-rustfs
+    {{compose}} logs -f file-service-postgres file-service-rustfs
 
 file-service-ps:
-    {{compose}} ps file-service-scylla file-service-rustfs
+    {{compose}} ps file-service-postgres file-service-rustfs
 
 chat-service-up:
-    {{compose}} up -d chat-service-scylla chat-service-scylla-init
+    {{compose}} up -d chat-service-postgres
 
 chat-service-down:
-    {{compose}} stop chat-service-scylla
+    {{compose}} stop chat-service-postgres
 
 chat-service-logs:
-    {{compose}} logs -f chat-service-scylla
+    {{compose}} logs -f chat-service-postgres
 
 chat-service-ps:
-    {{compose}} ps chat-service-scylla
+    {{compose}} ps chat-service-postgres
 
 file-service-port-forward:
     source ./scripts/file-service-port-forward.sh && ofm_file_service_port_forward_start
@@ -86,25 +103,25 @@ order-infra-up:
     bash ./scripts/order-infra-up.sh
 
 order-infra-down:
-    {{compose}} stop nats order-saga-service-scylla order-service-redis order-service-yugabyte payment-service-redis payment-service-yugabyte file-service-scylla file-service-rustfs
+    {{compose}} stop order-saga-service-postgres order-service-redis order-service-postgres payment-service-redis payment-service-postgres file-service-postgres file-service-rustfs
 
 order-infra-logs:
-    {{compose}} logs -f nats order-saga-service-scylla order-service-redis order-service-yugabyte payment-service-redis payment-service-yugabyte file-service-scylla file-service-rustfs
+    {{compose}} logs -f order-saga-service-postgres order-service-redis order-service-postgres payment-service-redis payment-service-postgres file-service-postgres file-service-rustfs
 
 order-infra-ps:
-    {{compose}} ps nats order-saga-service-scylla order-service-redis order-service-yugabyte payment-service-redis payment-service-yugabyte file-service-scylla file-service-rustfs
+    {{compose}} ps order-saga-service-postgres order-service-redis order-service-postgres payment-service-redis payment-service-postgres file-service-postgres file-service-rustfs
 
 gig-infra-up:
     bash ./scripts/gig-infra-up.sh
 
 gig-infra-down:
-    {{compose}} stop nats gig-service-redis gig-service-yugabyte payment-service-redis payment-service-yugabyte file-service-scylla file-service-rustfs
+    {{compose}} stop gig-service-redis gig-service-postgres payment-service-redis payment-service-postgres file-service-postgres file-service-rustfs
 
 gig-infra-logs:
-    {{compose}} logs -f nats gig-service-redis gig-service-yugabyte payment-service-redis payment-service-yugabyte file-service-scylla file-service-rustfs
+    {{compose}} logs -f gig-service-redis gig-service-postgres payment-service-redis payment-service-postgres file-service-postgres file-service-rustfs
 
 gig-infra-ps:
-    {{compose}} ps nats gig-service-redis gig-service-yugabyte payment-service-redis payment-service-yugabyte file-service-scylla file-service-rustfs
+    {{compose}} ps gig-service-redis gig-service-postgres payment-service-redis payment-service-postgres file-service-postgres file-service-rustfs
 
 payment-onboarding-flow:
     bash ./scripts/payment-onboarding-flow.sh
@@ -119,13 +136,13 @@ payment-webhook-ngrok:
     ingress_ip="$(kubectl --kubeconfig "$HOME/.kube/k3d-ofm.yaml" -n ofm get ingress payment-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')" && test -n "$ingress_ip" && ngrok http --host-header=payment.ofm.local "$ingress_ip:80"
 
 payment-infra-down:
-    {{compose}} stop nats payment-service-redis payment-service-yugabyte
+    {{compose}} stop payment-service-redis payment-service-postgres
 
 payment-infra-logs:
-    {{compose}} logs -f nats payment-service-redis payment-service-yugabyte
+    {{compose}} logs -f payment-service-redis payment-service-postgres
 
 payment-infra-ps:
-    {{compose}} ps nats payment-service-redis payment-service-yugabyte
+    {{compose}} ps payment-service-redis payment-service-postgres
 
 k3d-up:
     bash ./scripts/k3d-up.sh

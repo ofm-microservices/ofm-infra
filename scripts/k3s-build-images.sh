@@ -45,3 +45,6 @@ if [[ "$target_service" == "all" || "$target_service" == "review-service" ]]; th
 if [[ "$target_service" == "all" || "$target_service" == "search-service" ]]; then build_image "search-service" "ofm-search-service/Dockerfile" "ofm/search-service:${image_tag}"; fi
 if [[ "$target_service" == "all" || "$target_service" == "realtime-service" ]]; then build_image "realtime-service" "ofm-realtime-service/Dockerfile" "ofm/realtime-service:${image_tag}"; fi
 if [[ "$target_service" == "all" || "$target_service" == "mail-service" ]]; then build_image "mail-service" "ofm-mail-service/Dockerfile" "ofm/mail-service:${image_tag}"; fi
+if [[ "$target_service" == "all" || "$target_service" == "migration-bridge" ]]; then build_image "migration-bridge" "ofm-migration-bridge/Dockerfile" "ofm/migration-bridge:${image_tag}"; fi
+if [[ "$target_service" == "all" || "$target_service" == "load-test-service" ]]; then build_image "load-test-service" "ofm-infra/load-test-service/Dockerfile" "ofm/load-test-service:${image_tag}"; fi
+if [[ "$target_service" == "all" || "$target_service" == "load-test-service" ]]; then build_image "k6-full-system" "tests/full-system/k6/Dockerfile" "ofm/k6-full-system:${image_tag}"; fi

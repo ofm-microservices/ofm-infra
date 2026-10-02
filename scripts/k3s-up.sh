@@ -69,13 +69,40 @@ if ! "${kubectl_cmd[@]}" get --raw=/readyz >/dev/null 2>&1; then
     exit 1
 fi
 
+# The API server can become ready before the k3d nodes have reconnected after
+# a host reboot. Do not deploy injected Linkerd workloads while a node is
+# still reporting stale/Unknown pod state.
+for _ in {1..90}; do
+    if "${kubectl_cmd[@]}" wait --for=condition=Ready nodes --all --timeout=2s >/dev/null 2>&1; then
+        break
+    fi
+    sleep 2
+done
+
+if ! "${kubectl_cmd[@]}" wait --for=condition=Ready nodes --all --timeout=2s >/dev/null 2>&1; then
+    echo "kubernetes nodes are not ready" >&2
+    "${kubectl_cmd[@]}" get nodes -o wide >&2 || true
+    exit 1
+fi
+
+# HPA and the experiment's load assertions depend on metrics being available.
+# k3s installs metrics-server as an Addon, but it may still be warming up.
+for _ in {1..60}; do
+    if "${kubectl_cmd[@]}" get --raw=/apis/metrics.k8s.io/v1beta1 >/dev/null 2>&1; then
+        break
+    fi
+    sleep 2
+done
+
+if ! "${kubectl_cmd[@]}" get --raw=/apis/metrics.k8s.io/v1beta1 >/dev/null 2>&1; then
+    echo "metrics API is not ready" >&2
+    exit 1
+fi
+
 "${kubectl_cmd[@]}" get namespace "$namespace" >/dev/null 2>&1 || "${kubectl_cmd[@]}" create namespace "$namespace"
 "${kubectl_cmd[@]}" label namespace "$namespace" linkerd.io/inject=enabled --overwrite
 "${kubectl_cmd[@]}" label namespace "$namespace" app.kubernetes.io/managed-by=Helm --overwrite
-"${kubectl_cmd[@]}" annotate namespace "$namespace" \
-    meta.helm.sh/release-name="$release" \
-    meta.helm.sh/release-namespace="$namespace" \
-    --overwrite
+"${kubectl_cmd[@]}" annotate namespace "$namespace" meta.helm.sh/release-name="$release" meta.helm.sh/release-namespace="$namespace" --overwrite
 
 if [[ "$import_images" == "1" ]]; then
     bash "$repo_root/ofm-infra/scripts/k3s-import-images.sh"
@@ -91,7 +118,10 @@ done
     -f "$chart_dir/local-values.yaml" \
     -f "$chart_dir/local-secrets.yaml" \
     --set global.externalHost="$host_ip" \
-    --set global.imagePullPolicy=IfNotPresent
+    --set global.kafkaHost="172.22.0.10" \
+    --set global.imagePullPolicy=IfNotPresent \
+    --server-side=true \
+    --force-conflicts
 
 for svc in "${services_to_manage[@]}"; do
     "${kubectl_cmd[@]}" -n "$namespace" rollout status "deploy/$svc" --timeout=600s

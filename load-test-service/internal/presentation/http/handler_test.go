@@ -25,7 +25,7 @@ func (runner) List(context.Context) ([]application.Job, error) {
 	return []application.Job{{Name: "job-1", RunID: "run-1", State: "RUNNING"}}, nil
 }
 func (runner) Get(context.Context, string) (application.Job, error) {
-	return application.Job{Name: "job-1", RunID: "run-1", State: "COMPLETED"}, nil
+	return application.Job{Name: "job-1", RunID: "run-1", State: "PASS"}, nil
 }
 func (runner) Stop(context.Context, string) error { return nil }
 

@@ -1,4 +1,4 @@
-FROM golang:1.25.5 AS build
+FROM golang:1.25.11 AS build
 WORKDIR /src
 COPY ofm-infra/load-test-service /src
 RUN go mod download && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/load-test-service ./cmd/load-test-service && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/capacity-controller ./cmd/capacity-controller

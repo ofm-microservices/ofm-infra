@@ -9,15 +9,26 @@ rules:
 - apiGroups: [batch]
   resources: [jobs]
   verbs: [get, list, create, delete, patch]
+- apiGroups: [apps]
+  resources: [deployments]
+  verbs: [get, patch]
 - apiGroups: [""]
   resources: [pods, pods/log]
   verbs: [get, list]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
-metadata: {name: load-test-service, namespace: ofm}
-roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: load-test-service}
-subjects: [{kind: ServiceAccount, name: load-test-service, namespace: ofm}]
+metadata:
+  name: load-test-service
+  namespace: ofm
+roleRef:
+  apiGroup: "rbac.authorization.k8s.io"
+  kind: Role
+  name: load-test-service
+subjects:
+- kind: ServiceAccount
+  name: load-test-service
+  namespace: ofm
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -43,17 +54,48 @@ spec:
     metadata: {labels: {app: load-test-service}}
     spec:
       serviceAccountName: load-test-service
+      tolerations:
+      - key: node.kubernetes.io/disk-pressure
+        operator: Exists
+        effect: NoSchedule
+      hostAliases:
+      - ip: 172.22.0.1
+        hostnames: [host.k3d.internal, kafka]
       containers:
       - name: load-test-service
-        image: ofm/load-test-service:a3551cd0
+        image: ofm/load-test-service:374ca812ed65
         imagePullPolicy: IfNotPresent
         env:
         - {name: RUNNER_NAMESPACE, value: ofm}
-        - {name: K6_IMAGE, value: ofm/k6-full-system:resilience-dev8}
-        - {name: OTEL_EXPORTER_OTLP_ENDPOINT, value: http://otel-collector:4318}
+        - {name: MAX_VUS, value: "40"}
+        - {name: K6_IMAGE, value: ofm/k6-full-system:b910fe50c1b4}
+        - {name: OTEL_EXPORTER_OTLP_ENDPOINT, value: http://otel-collector.ofm.svc.cluster.local:4318}
         - {name: CLICKHOUSE_URL, value: http://clickhouse:8123}
         - {name: CLICKHOUSE_USER, value: admin}
         - {name: CLICKHOUSE_PASSWORD, value: admin}
+        - {name: OFM_AUDIT_MONOLITH_URL, value: "postgres://admin:admin@host-db-bridge.ofm.svc.cluster.local:5433/ofm_monolith?sslmode=disable"}
+        - {name: OFM_AUDIT_GIG_URL, value: "postgres://admin:admin@host.k3d.internal:5435/gig_service?sslmode=disable"}
+        - {name: OFM_AUDIT_ORDER_URL, value: "postgres://admin:admin@host.k3d.internal:5436/order_service?sslmode=disable"}
+        - {name: OFM_AUDIT_PAYMENT_URL, value: "postgres://admin:admin@host.k3d.internal:5437/payment_service?sslmode=disable"}
+        - {name: OFM_AUDIT_REVIEW_URL, value: "postgres://admin:admin@host.k3d.internal:5443/review_service?sslmode=disable"}
+        - {name: OFM_AUDIT_USER_URL, value: "postgres://admin:admin@host.k3d.internal:5433/user_service?sslmode=disable"}
+        - {name: OFM_AUDIT_AUTH_URL, value: "postgres://admin:admin@host.k3d.internal:5434/auth_service?sslmode=disable"}
+        - {name: OFM_AUDIT_FILE_URL, value: "postgres://admin:admin@host.k3d.internal:5440/file_service?sslmode=disable"}
+        - {name: OFM_AUDIT_CHAT_URL, value: "postgres://admin:admin@host.k3d.internal:5438/chat_service?sslmode=disable"}
+        - {name: OFM_AUDIT_ORDER_SAGA_URL, value: "postgres://admin:admin@host.k3d.internal:5441/order_saga?sslmode=disable"}
+        - {name: OFM_AUDIT_REGISTRATION_URL, value: "postgres://admin:admin@host.k3d.internal:5442/registration_saga?sslmode=disable"}
+        # Give Kafka/Connect/Debezium enough time to drain before the run is
+        # finalized. Override for unusually large local runs if needed.
+        - {name: OFM_PROJECTION_AUDIT_WAIT_SECONDS, value: "600"}
+        - {name: KAFKA_BROKERS, value: 172.22.0.10:9092}
+        - {name: K6_FIXTURE_REVIEW_ORDER_ID, value: 01a01a48-0608-7a76-a042-730bf3e2e8db}
+        - {name: K6_FIXTURE_BUYER_ID, value: 7c1d1af1-6be4-4e77-8e57-0b1f2d12e9aa}
+        - {name: K6_FIXTURE_USERNAME, value: recovery-buyer}
+        - {name: K6_FIXTURE_ORDER_ID, value: 01a01a48-0608-7a76-a042-730bf3e2e8db}
+        - {name: K6_FIXTURE_GIG_ID, value: 01a01a47-d58f-7287-9187-1ff999a49968}
+        - {name: K6_PACKAGE_ID, value: 01a01a47-e1ec-75c4-b0fc-edd871493254}
+        - {name: K6_ORDER_ID, value: 01a01f4c-278b-7d57-ac9e-edf7e843d2e4}
+        - {name: K6_FIXTURE_PASSWORD, value: Password123!}
         ports: [{name: http, containerPort: 8080}]
         readinessProbe: {httpGet: {path: /healthz, port: http}}
         livenessProbe: {httpGet: {path: /healthz, port: http}}

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-image_tag="${OFM_K3S_IMAGE_TAG:-k3s}"
+image_tag="${OFM_K3S_IMAGE_TAG:-$(bash "$repo_root/ofm-infra/scripts/k3d-image-tag.sh")}"
 cluster="${OFM_K3D_CLUSTER:-${OFM_K3S_CLUSTER:-ofm}}"
 
 resolve_host_ip() {
@@ -68,3 +68,6 @@ import_image "review-service" "ofm/review-service:${image_tag}"
 import_image "search-service" "ofm/search-service:${image_tag}"
 import_image "realtime-service" "ofm/realtime-service:${image_tag}"
 import_image "mail-service" "ofm/mail-service:${image_tag}"
+import_image "migration-bridge" "ofm/migration-bridge:${image_tag}"
+import_image "load-test-service" "ofm/load-test-service:${image_tag}"
+import_image "k6-full-system" "ofm/k6-full-system:${image_tag}"
