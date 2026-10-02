@@ -1,0 +1,234 @@
+{
+  "uid": "ofm-system-health",
+  "title": "OFM — System Health",
+  "schemaVersion": 39,
+  "refresh": "10s",
+  "tags": [
+    "ofm",
+    "health",
+    "kafka",
+    "kubernetes"
+  ],
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Kubernetes pods not ready",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(kube_pod_status_ready{namespace=\"ofm\",condition=\"false\"} * on(namespace,pod) kube_pod_status_phase{namespace=\"ofm\",phase=\"Running\"} * on(namespace,pod) kube_pod_info{namespace=\"ofm\",created_by_kind=\"ReplicaSet\"})",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Kafka exporter up",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "up{job=\"kafka-exporter\"}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Kafka activity and consumer lag",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "clamp_min(sum by (consumergroup, topic) (kafka_consumergroup_lag and on (consumergroup) (kafka_consumergroup_members > 0)), 0)",
+          "legendFormat": "{{consumergroup}} / {{topic}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (topic) (rate(kafka_topic_partition_current_offset{topic!~\"__.*|.*consumer_offsets\"}[1m]))",
+          "legendFormat": "events/s {{topic}}",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "Consumer groups with lag",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(sum by (consumergroup, topic) (clamp_min(kafka_consumergroup_lag and on (consumergroup) (kafka_consumergroup_members > 0), 0)) > 0) or on() vector(0)",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Pod restarts",
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"ofm\"}[15m])) or vector(0)",
+          "legendFormat": "{{pod}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Migration bridge availability",
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "min(migration_bridge_up)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Bridge processed events",
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(migration_bridge_processed_events_total[5m]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Bridge reconnects / publish errors",
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(migration_bridge_reconnects_total[5m]))",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(migration_bridge_publish_errors_total[5m]))",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Debezium connector/task status",
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 10
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "ofm_debezium_connector_up",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        },
+        {
+          "expr": "ofm_debezium_task_up",
+          "format": "table",
+          "instant": true,
+          "refId": "B"
+        },
+        {
+          "expr": "ofm_debezium_connector_errors",
+          "format": "table",
+          "instant": true,
+          "refId": "C"
+        }
+      ]
+    }
+  ]
+}

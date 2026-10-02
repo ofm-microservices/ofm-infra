@@ -10,7 +10,7 @@ spec:
   ports:
     - protocol: TCP
       port: 5433
-      targetPort: 15499
+      targetPort: 5439
 ---
 apiVersion: v1
 kind: Endpoints
@@ -23,5 +23,5 @@ subsets:
   - addresses:
       - ip: {{ .Values.global.externalHost }}
     ports:
-      - port: 15499
+      - port: 5439
 {{- end }}

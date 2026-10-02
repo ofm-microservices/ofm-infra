@@ -28,7 +28,7 @@
       "id": 1,
       "type": "stat",
       "title": "Verdict",
-      "gridPos": {
+          "gridPos": {
         "h": 5,
         "w": 6,
         "x": 0,
@@ -82,7 +82,7 @@
     {
       "id": 2,
       "type": "stat",
-      "title": "Checks failed",
+      "title": "K6 checks failed",
       "gridPos": {
         "h": 5,
         "w": 6,
@@ -96,6 +96,48 @@
       "targets": [
         {
           "rawSql": "SELECT checks_failed AS value FROM ofm_load_test_runs WHERE run_id='$run_id' ORDER BY started_at DESC LIMIT 1",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "stat",
+      "title": "K6 checks total",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 5
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT checks_total AS value FROM ofm_load_test_runs WHERE run_id='$run_id' ORDER BY started_at DESC LIMIT 1",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "stat",
+      "title": "Completed flows",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 5
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT JSONExtractInt(result_json, 'full_system_completed_flows') AS value FROM ofm_load_test_runs WHERE run_id='$run_id' ORDER BY started_at DESC LIMIT 1",
           "format": "table"
         }
       ]
@@ -149,7 +191,7 @@
       "gridPos": {
         "h": 5,
         "w": 6,
-        "x": 0,
+        "x": 12,
         "y": 5
       },
       "datasource": {
@@ -170,7 +212,7 @@
       "gridPos": {
         "h": 5,
         "w": 6,
-        "x": 6,
+        "x": 18,
         "y": 5
       },
       "datasource": {
@@ -187,49 +229,7 @@
     {
       "id": 7,
       "type": "stat",
-      "title": "Logs p50 (ms)",
-      "gridPos": {
-        "h": 5,
-        "w": 6,
-        "x": 12,
-        "y": 5
-      },
-      "datasource": {
-        "type": "grafana-clickhouse-datasource",
-        "uid": "clickhouse"
-      },
-      "targets": [
-        {
-          "rawSql": "SELECT quantileExact(0.50)(duration_ms) AS value FROM ofm_logs WHERE test_run_id='$run_id' AND duration_ms>0",
-          "format": "table"
-        }
-      ]
-    },
-    {
-      "id": 8,
-      "type": "stat",
-      "title": "Logs p95 (ms)",
-      "gridPos": {
-        "h": 5,
-        "w": 6,
-        "x": 18,
-        "y": 5
-      },
-      "datasource": {
-        "type": "grafana-clickhouse-datasource",
-        "uid": "clickhouse"
-      },
-      "targets": [
-        {
-          "rawSql": "SELECT quantileExact(0.95)(duration_ms) AS value FROM ofm_logs WHERE test_run_id='$run_id' AND duration_ms>0",
-          "format": "table"
-        }
-      ]
-    },
-    {
-      "id": 9,
-      "type": "stat",
-      "title": "Logs p99 (ms)",
+      "title": "HTTP p50 (ms)",
       "gridPos": {
         "h": 5,
         "w": 6,
@@ -242,7 +242,49 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT quantileExact(0.99)(duration_ms) AS value FROM ofm_logs WHERE test_run_id='$run_id' AND duration_ms>0",
+          "rawSql": "SELECT JSONExtractFloat(result_json, 'p50_duration_ms') AS value FROM ofm_load_test_runs WHERE run_id='$run_id' ORDER BY started_at DESC LIMIT 1",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "HTTP p95 (ms)",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 10
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT p95_duration_ms AS value FROM ofm_load_test_runs WHERE run_id='$run_id' ORDER BY started_at DESC LIMIT 1",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "HTTP p99 (ms)",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 10
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT JSONExtractFloat(result_json, 'p99_duration_ms') AS value FROM ofm_load_test_runs WHERE run_id='$run_id' ORDER BY started_at DESC LIMIT 1",
           "format": "table"
         }
       ]
@@ -254,7 +296,7 @@
       "gridPos": {
         "h": 5,
         "w": 6,
-        "x": 6,
+        "x": 18,
         "y": 10
       },
       "datasource": {
@@ -275,8 +317,8 @@
       "gridPos": {
         "h": 5,
         "w": 6,
-        "x": 12,
-        "y": 10
+        "x": 0,
+        "y": 15
       },
       "datasource": {
         "type": "grafana-clickhouse-datasource",
@@ -296,8 +338,8 @@
       "gridPos": {
         "h": 5,
         "w": 6,
-        "x": 18,
-        "y": 10
+        "x": 6,
+        "y": 15
       },
       "datasource": {
         "type": "grafana-clickhouse-datasource",
@@ -311,6 +353,27 @@
       ]
     },
     {
+      "id": 14,
+      "type": "table",
+      "title": "Projection audit by entity",
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "rawSql": "WITH (SELECT projection_audit_json FROM ofm_load_test_runs WHERE run_id='$run_id' ORDER BY started_at DESC LIMIT 1) AS audit SELECT entity, if(JSONExtractRaw(JSONExtractRaw(audit, 'entities'), entity) = '', NULL, JSONExtractInt(JSONExtractRaw(JSONExtractRaw(audit, 'entities'), entity), 'microservice_count')) AS microservice_count, if(JSONExtractRaw(JSONExtractRaw(audit, 'entities'), entity) = '', NULL, JSONExtractInt(JSONExtractRaw(JSONExtractRaw(audit, 'entities'), entity), 'monolith_count')) AS monolith_count, if(JSONExtractRaw(JSONExtractRaw(audit, 'entities'), entity) = '', NULL, JSONExtractInt(JSONExtractRaw(JSONExtractRaw(audit, 'entities'), entity), 'mapping_count')) AS mapping_count, if(JSONExtractRaw(JSONExtractRaw(audit, 'entities'), entity) = '', NULL, JSONExtractInt(JSONExtractRaw(JSONExtractRaw(audit, 'entities'), entity), 'outbox_published')) AS outbox_published, if(JSONExtractRaw(JSONExtractRaw(audit, 'entities'), entity) = '', NULL, JSONExtractInt(JSONExtractRaw(JSONExtractRaw(audit, 'entities'), entity), 'outbox_pending')) AS outbox_pending, if(JSONExtractRaw(JSONExtractRaw(audit, 'entities'), entity) = '', NULL, JSONExtractInt(JSONExtractRaw(JSONExtractRaw(audit, 'entities'), entity), 'mismatches')) AS mismatches FROM (SELECT arrayJoin(['user','auth_credentials','registration','gig','gig_package','gig_question','gig_media','file','order','order_gig_snapshot','order_question_snapshot','order_requirement_answer','order_checkout_session','order_delivery','order_delivery_file','order_attachment','order_revision_request','order_dispute','chat','chat_message','review','payment_intent','payment_webhook_event','connect_account','payment_release','payment_transfer','payment_refund','order_saga','registration_saga']) AS entity)",
+          "format": "table"
+        }
+      ]
+    },
+    {
       "id": 13,
       "type": "table",
       "title": "Run logs",
@@ -318,7 +381,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 15
+        "y": 43
       },
       "datasource": {
         "type": "grafana-clickhouse-datasource",
@@ -330,6 +393,32 @@
           "format": "table"
         }
       ]
+    },
+    {
+      "id": 15,
+      "type": "table",
+      "title": "Check failures / reasons",
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "rawSql": "WITH run_window AS (SELECT min(started_at) AS run_started, max(finished_at) AS run_finished FROM ofm_load_test_runs WHERE run_id='$run_id') SELECT timestamp, service, extract(message, 'msg=\\\"CHECK_FAILED ([^\\\"]+)\\\"') AS check_name, if(message != '', message, msg) AS details, raw FROM ofm_logs WHERE service='k6' AND timestamp >= (SELECT run_started FROM run_window) AND timestamp <= (SELECT run_finished FROM run_window) AND positionCaseInsensitiveUTF8(message, 'CHECK_FAILED') > 0 UNION ALL SELECT timestamp, service, operation AS check_name, if(message != '', message, msg) AS details, raw FROM ofm_logs WHERE test_run_id='$run_id' AND service!='k6' AND (positionCaseInsensitiveUTF8(message, 'CHECK_FAILED') > 0 OR positionCaseInsensitiveUTF8(msg, 'CHECK_FAILED') > 0) ORDER BY timestamp DESC LIMIT 500",
+          "format": "table"
+        }
+      ],
+      "options": {
+        "footer": {
+          "show": true
+        }
+      }
     }
   ]
 }

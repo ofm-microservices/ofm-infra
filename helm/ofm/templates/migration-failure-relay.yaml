@@ -31,11 +31,11 @@ spec:
                 - name: MIGRATION_RELAY_FAILURES
                   value: "true"
                 - name: MIGRATION_KAFKA_BROKERS
-                  value: kafka:9092
+                  value: {{ include "ofm.kafkaHost" . }}:9092
                 - name: MIGRATION_DEAD_LETTER_TOPIC
                   value: migration.dead-letter
                 - name: MIGRATION_REPLAY_LIMIT
                   value: {{ .Values.migrationFailureRelay.batchLimit | quote }}
                 - name: MIGRATION_FAILURE_DATABASE_URL
-                  value: {{ printf "postgres://admin:admin@%s:%d/%s?sslmode=disable" (include "ofm.externalHost" .) (int .Values.migrationFailureRelay.databasePort) .Values.migrationFailureRelay.databaseName | quote }}
+                  value: {{ printf "postgres://admin:admin@host-db-bridge.%s.svc.cluster.local:5433/%s?sslmode=disable" .Values.global.namespace .Values.migrationFailureRelay.databaseName | quote }}
 {{- end }}

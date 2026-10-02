@@ -5,7 +5,6 @@ set -Eeuo pipefail
 # non-empty topic proves wiring only; write-by-write E2E remains a separate gate.
 kafka_container="${KAFKA_CONTAINER:-ofm-migration-kafka}"
 debezium_container="${DEBEZIUM_CONTAINER:-ofm-migration-debezium}"
-scylla_connect_container="${SCYLLA_CONNECT_CONTAINER:-ofm-migration-scylla-cdc}"
 
 connect_status() {
   local container="$1"
@@ -13,16 +12,14 @@ connect_status() {
     jq -r 'to_entries[] | [.key,.value.status.connector.state,([.value.status.tasks[].state] | join(","))] | @tsv'
 }
 
-echo '## Yugabyte Debezium connectors'
+echo '## PostgreSQL Debezium connectors'
 connect_status "$debezium_container"
-echo '## Scylla CDC connectors'
-connect_status "$scylla_connect_container"
 
 echo '## Canonical topic offsets'
 while IFS= read -r topic; do
   [[ -z "$topic" ]] && continue
   offset="$(docker exec "$kafka_container" /opt/kafka/bin/kafka-get-offsets.sh \
-    --bootstrap-server kafka:9092 --topic "$topic" 2>/dev/null | awk -F: 'NR==1 {print $3}')"
+    --bootstrap-server kafka:19092 --topic "$topic" 2>/dev/null | awk -F: 'NR==1 {print $3}')"
   printf '%s\t%s\n' "$topic" "${offset:-0}"
 done <<'TOPICS'
 migration.auth.credentials.created
@@ -48,7 +45,7 @@ TOPICS
 echo '## Side-effect consumer groups'
 for group in mail-service realtime-service search-service; do
   docker exec "$kafka_container" /opt/kafka/bin/kafka-consumer-groups.sh \
-    --bootstrap-server kafka:9092 --describe --group "$group" 2>/dev/null || true
+    --bootstrap-server kafka:19092 --describe --group "$group" 2>/dev/null || true
 done
 
 echo '## Schema Registry groups'

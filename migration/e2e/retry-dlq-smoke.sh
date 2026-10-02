@@ -9,20 +9,20 @@ expected_delivery_count="${EXPECTED_DLQ_DELIVERY_COUNT:-5}"
 
 offsets() {
   docker exec "$kafka" /opt/kafka/bin/kafka-get-offsets.sh \
-    --bootstrap-server kafka:9092 --topic "$dlq_topic" 2>/dev/null \
+    --bootstrap-server kafka:19092 --topic "$dlq_topic" 2>/dev/null \
     | awk -F: '$2 == 0 {print $3}'
 }
 
 before="$(offsets)"
 payload="{\"source\":{\"db\":\"registration_saga_service\",\"table_name\":\"registration_sessions\",\"ts_ms\":1700000000000},\"after\":{\"marker\":\"$id\"},\"op\":\"c\"}"
 printf '%s\n' "$payload" | docker exec -i "$kafka" /opt/kafka/bin/kafka-console-producer.sh \
-  --bootstrap-server kafka:9092 --topic "$source_topic" >/dev/null
+  --bootstrap-server kafka:19092 --topic "$source_topic" >/dev/null
 
 for _ in $(seq 1 18); do
   after="$(offsets)"
   if [[ "$after" -gt "$before" ]]; then
     docker exec "$kafka" /opt/kafka/bin/kafka-console-consumer.sh \
-      --bootstrap-server kafka:9092 --topic "$dlq_topic" --partition 0 \
+    --bootstrap-server kafka:19092 --topic "$dlq_topic" --partition 0 \
       --offset "$before" --max-messages 20 --timeout-ms 4000 \
       --property print.headers=true 2>/dev/null | tee /tmp/ofm-dlq-smoke.out | rg -q "$id" && break
   fi

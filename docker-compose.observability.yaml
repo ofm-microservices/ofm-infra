@@ -5,7 +5,7 @@ services:
     image: prom/prometheus:v3.7.3
     container_name: ofm-prometheus
     restart: unless-stopped
-    mem_limit: 512m
+    mem_limit: 256m
     cpus: "0.50"
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -19,11 +19,25 @@ services:
       - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
 
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.9.0
+    container_name: ofm-kafka-exporter
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: "0.25"
+    command:
+      - "--kafka.server=kafka:19092"
+      - "--web.listen-address=:9308"
+    ports:
+      - "9308:9308"
+    depends_on:
+      - prometheus
+
   grafana:
     image: grafana/grafana:12.3.0
     container_name: ofm-grafana
     restart: unless-stopped
-    mem_limit: 512m
+    mem_limit: 256m
     cpus: "0.50"
     environment:
       GF_SECURITY_ADMIN_USER: admin
@@ -56,8 +70,8 @@ services:
     image: clickhouse/clickhouse-server:25.8
     container_name: ofm-clickhouse
     restart: unless-stopped
-    mem_limit: 2g
-    cpus: "2.00"
+    mem_limit: 768m
+    cpus: "0.50"
     ports:
       - "9097:8123"
     volumes:
@@ -69,7 +83,7 @@ services:
     image: grafana/tempo:2.10.0
     container_name: ofm-tempo
     restart: unless-stopped
-    mem_limit: 512m
+    mem_limit: 256m
     cpus: "0.50"
     command:
       - "-config.file=/etc/tempo.yaml"
@@ -83,7 +97,7 @@ services:
     image: otel/opentelemetry-collector-contrib:0.120.0
     container_name: ofm-otel-collector
     restart: unless-stopped
-    mem_limit: 512m
+    mem_limit: 256m
     cpus: "0.50"
     command:
       - "--config=/etc/otel-collector.yaml"

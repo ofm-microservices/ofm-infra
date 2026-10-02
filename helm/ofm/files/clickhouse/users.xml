@@ -9,4 +9,10 @@
       <quota>default</quota>
     </admin>
   </users>
+  <profiles>
+    <default>
+      <max_memory_usage>536870912</max_memory_usage>
+      <max_threads>2</max_threads>
+    </default>
+  </profiles>
 </clickhouse>
