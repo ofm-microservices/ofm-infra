@@ -235,7 +235,7 @@ fi
 # release, but it must still be reconciled to the same content-derived image
 # tag. Applying the manifest alone leaves old server-side fields (including
 # removed NATS variables), so remove those explicitly after the apply.
-"${kubectl_cmd[@]}" apply -f "$repo_root/ofm-infra/load-test-service/k8s.yaml"
+"${kubectl_cmd[@]}" apply -f "$repo_root/ofm-infra/k8s/load-test-service.yaml"
 "${kubectl_cmd[@]}" -n "$namespace" set image deployment/load-test-service \
     load-test-service="ofm/load-test-service:${image_tag}"
 "${kubectl_cmd[@]}" -n "$namespace" set env deployment/load-test-service \

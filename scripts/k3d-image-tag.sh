@@ -16,7 +16,6 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
         find "$repo_root/ofm-$service" -type f \
             ! -path '*/.git/*' ! -path '*/vendor/*' -print
     done
-    find "$repo_root/ofm-infra/load-test-service" "$repo_root/tests/full-system/k6" -type f \
-        ! -path "$repo_root/ofm-infra/load-test-service/k8s.yaml" \
+    find "$repo_root/ofm-experiment-service" -type f \
         ! -path '*/.git/*' ! -path '*/vendor/*' -print
 } | sort -u | xargs sha256sum | sha256sum | cut -c1-12

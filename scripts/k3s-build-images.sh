@@ -13,9 +13,10 @@ build_image() {
     local service="$1"
     local dockerfile="$2"
     local image="$3"
+    local context="${4:-.}"
 
     echo "== build $service =="
-    docker build -t "$image" -f "$repo_root/$dockerfile" "$repo_root"
+    docker build -t "$image" -f "$repo_root/$dockerfile" "$repo_root/$context"
 
     if [[ "$import_images" == "1" ]]; then
         echo "== import $image into k3s =="
@@ -46,5 +47,5 @@ if [[ "$target_service" == "all" || "$target_service" == "search-service" ]]; th
 if [[ "$target_service" == "all" || "$target_service" == "realtime-service" ]]; then build_image "realtime-service" "ofm-realtime-service/Dockerfile" "ofm/realtime-service:${image_tag}"; fi
 if [[ "$target_service" == "all" || "$target_service" == "mail-service" ]]; then build_image "mail-service" "ofm-mail-service/Dockerfile" "ofm/mail-service:${image_tag}"; fi
 if [[ "$target_service" == "all" || "$target_service" == "migration-bridge" ]]; then build_image "migration-bridge" "ofm-migration-bridge/Dockerfile" "ofm/migration-bridge:${image_tag}"; fi
-if [[ "$target_service" == "all" || "$target_service" == "load-test-service" ]]; then build_image "load-test-service" "ofm-infra/load-test-service/Dockerfile" "ofm/load-test-service:${image_tag}"; fi
-if [[ "$target_service" == "all" || "$target_service" == "load-test-service" ]]; then build_image "k6-full-system" "tests/full-system/k6/Dockerfile" "ofm/k6-full-system:${image_tag}"; fi
+if [[ "$target_service" == "all" || "$target_service" == "load-test-service" ]]; then build_image "load-test-service" "ofm-experiment-service/Dockerfile" "ofm/load-test-service:${image_tag}" "ofm-experiment-service"; fi
+if [[ "$target_service" == "all" || "$target_service" == "load-test-service" ]]; then build_image "k6-full-system" "ofm-experiment-service/k6/Dockerfile" "ofm/k6-full-system:${image_tag}" "ofm-experiment-service"; fi
